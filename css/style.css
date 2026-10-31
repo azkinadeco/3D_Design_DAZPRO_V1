@@ -30,7 +30,11 @@ button { cursor: pointer; }
 
 /* ---------- top bar ---------- */
 .topbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px clamp(16px, 3vw, 32px); background: rgba(246, 247, 249, .82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
+.brand-logo { height: 34px; width: auto; display: block; }
+.brand-tag { font-size: 12px; font-weight: 600; color: var(--muted); padding-left: 12px; border-left: 1px solid var(--line-2); line-height: 1.2; }
+.foot-brand img { height: 28px; width: auto; display: block; }
+@media (max-width: 480px) { .brand-logo { height: 28px; } .brand-tag { display: none; } }
 .brand-mark { width: 34px; height: 34px; border-radius: 9px; background: var(--ink); display: grid; place-items: center; }
 .brand-mark svg { width: 20px; height: 20px; fill: none; stroke: #6f95ff; stroke-width: 3.2; filter: drop-shadow(0 0 4px #5b8cff); }
 .brand-name { font-weight: 800; letter-spacing: .04em; display: flex; flex-direction: column; line-height: 1.05; }
@@ -236,7 +240,8 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.35; font-wei
 .joy-knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(255, 255, 255, .92); box-shadow: 0 2px 8px rgba(0, 0, 0, .3); pointer-events: none; }
 .walk-btns { position: absolute; right: 16px; bottom: 22px; display: flex; gap: 8px; pointer-events: auto; }
 .walk-btns .on { background: var(--accent); }
-.viewport.walking .vp-tools, .viewport.walking .vp-bottom, .viewport.walking .vp-spec { display: none; }
+.viewport.walking .vp-bottom, .viewport.walking .vp-spec, .viewport.walking .vp-tools .tool-group:not(.zoom-group) { display: none; }
+.viewport.walking .vp-tools { top: 110px; }
 
 /* ---------- summary bar ---------- */
 .summary { display: grid; grid-template-columns: 1fr auto auto; gap: 18px; align-items: center; padding: 12px 16px 12px 20px; background: var(--surface); border-top: 1px solid var(--line); }
@@ -271,6 +276,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.35; font-wei
   #quote h2 { font-size: 12pt; margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1.5px solid #0f172a; break-after: avoid; }
   .q-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding-bottom: 12px; border-bottom: 3px solid #0f172a; }
   .q-brand { display: flex; gap: 10px; align-items: center; }
+  .q-logo { height: 52px; width: auto; display: block; }
   .q-brand b { display: block; font-size: 16pt; letter-spacing: .05em; }
   .q-brand span { color: #64748b; font-size: 9pt; }
   .q-mark { width: 38px; height: 38px; border-radius: 9px; background: #0f172a; display: grid; place-items: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -393,6 +399,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.35; font-wei
   .vp-chip { display: none; }
   .how { grid-template-columns: 1fr; gap: 18px; }
   .walk-help { display: none; }
+  .walk-btns { flex-direction: column; align-items: flex-end; right: 12px; bottom: 18px; }
   .studio.is-full .viewport { height: auto; flex: 1; }
   .studio.is-full { display: flex; flex-direction: column; overflow-y: auto; }
   .studio.is-full .viewport-wrap { flex: 1; min-height: 70dvh; }

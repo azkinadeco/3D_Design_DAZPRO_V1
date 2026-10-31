@@ -871,6 +871,8 @@ function renderViewportUI() {
   $('#btn-full').innerHTML = $('#studio').classList.contains('is-full') ? ICONS.shrink : ICONS.expand;
   $('#btn-spin').innerHTML = ICONS.spin;
   $('#panel-toggle').innerHTML = $('#studio').classList.contains('panel-off') ? ICONS.sidebarOff : ICONS.sidebar;
+  $('#btn-zin').innerHTML = ICONS.zoomIn;
+  $('#btn-zout').innerHTML = ICONS.zoomOut;
   $('#btn-undo').innerHTML = ICONS.undo;
   $('#btn-redo').innerHTML = ICONS.redo;
   $('#btn-dims').innerHTML = ICONS.ruler;
@@ -925,6 +927,8 @@ $('#walk-run').addEventListener('click', (e) => { const on = !engine.walk.sprint
   pad.addEventListener('lostpointercapture', end);
 })();
 
+$('#btn-zin').addEventListener('click', () => { setSpin(false); engine.zoom(0.78); });
+$('#btn-zout').addEventListener('click', () => { setSpin(false); engine.zoom(1.28); });
 $('#btn-undo').addEventListener('click', () => travel(-1));
 $('#btn-redo').addEventListener('click', () => travel(1));
 $('#btn-dims').addEventListener('click', () => {

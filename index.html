@@ -9,11 +9,13 @@
   <meta property="og:title" content="DAZPRO Signage Studio 3D" />
   <meta property="og:description" content="Desain signage usaha Anda dalam 3D: neon box, huruf timbul, LED, bahan, dan lokasi pemasangan." />
   <meta property="og:locale" content="id_ID" />
+  <meta property="og:image" content="assets/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Cpath d='M9 8h7a8 8 0 010 16H9z' fill='none' stroke='%235b8cff' stroke-width='3'/%3E%3C/svg%3E" />
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
   <script type="importmap">
   { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
   </script>
@@ -21,8 +23,8 @@
 <body>
   <header class="topbar">
     <a class="brand" href="#">
-      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 8h7a8 8 0 010 16H9z" /></svg></span>
-      <span class="brand-name">DAZPRO<span class="brand-sub">Signage Studio</span></span>
+      <img class="brand-logo" src="assets/logo.png" alt="Dazpro Advertising" width="720" height="273" />
+      <span class="brand-tag">Signage Studio</span>
     </a>
     <nav class="topnav">
       <a href="#studio">Studio 3D</a>
@@ -72,7 +74,11 @@
           </div>
 
           <div class="vp-tools">
-            <div class="tool-group">
+            <div class="tool-group zoom-group">
+              <button class="icon-btn" id="btn-zin" title="Perbesar (scroll / cubit layar)" aria-label="Perbesar"></button>
+              <button class="icon-btn" id="btn-zout" title="Perkecil" aria-label="Perkecil"></button>
+            </div>
+            <div class="tool-group hist-group">
               <button class="icon-btn" id="btn-undo" title="Urungkan (Ctrl+Z)" aria-label="Urungkan"></button>
               <button class="icon-btn" id="btn-redo" title="Ulangi (Ctrl+Y)" aria-label="Ulangi"></button>
             </div>
@@ -149,7 +155,7 @@
   </main>
 
   <footer class="footer">
-    <div><b>DAZPRO</b> · Signage &amp; Advertising</div>
+    <div class="foot-brand"><img src="assets/logo.png" alt="Dazpro Advertising" height="28" /></div>
     <div id="foot-info"></div>
     <div class="muted">Tampilan 3D bersifat ilustrasi. Ukuran mendekati skala asli; harga final dikonfirmasi setelah survei.</div>
   </footer>

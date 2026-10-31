@@ -3,6 +3,7 @@ body.admin{background:var(--bg)}
 .login{max-width:420px;margin:56px auto;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:32px 28px;text-align:center;box-shadow:var(--shadow)}
 .login h1{margin:14px 0 6px;font-size:22px;letter-spacing:-.02em}
 .login .btn{margin-top:18px}
+.login-logo{height:56px;width:auto;display:block;margin:0 auto 4px}
 .login-mark{width:48px;height:48px;border-radius:14px;background:var(--ink);display:inline-grid;place-items:center}
 .login-mark svg{width:26px;height:26px;fill:none;stroke:#6f95ff;stroke-width:3.2;filter:drop-shadow(0 0 4px #5b8cff)}
 .login-err{margin-top:16px;text-align:left;font-size:13px;line-height:1.55;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:12px;padding:12px 14px}

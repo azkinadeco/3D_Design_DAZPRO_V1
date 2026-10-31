@@ -37,6 +37,7 @@ export class Engine {
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 900);
+    this._baseFov = 45;
     this.camera.position.set(8, 4, 18);
 
     const pm = new THREE.PMREMGenerator(r);
@@ -433,8 +434,29 @@ export class Engine {
       try { el.releasePointerCapture(look.id); } catch (_) { /* noop */ }
       look = null;
     };
+    // cubit dua jari = zoom saat mode jalan
+    const touches = new Map();
+    let pinch = 0;
+    const pinchDist = () => { const [a, b] = [...touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
     el.addEventListener('pointerdown', (e) => {
-      if (this.mode !== 'walk' || look || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      if (this.mode !== 'walk' || e.pointerType !== 'touch') return;
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 2) { stopLook(); pinch = pinchDist(); }
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!touches.has(e.pointerId)) return;
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 2 && pinch > 0) {
+        const d = pinchDist();
+        this.zoom(THREE.MathUtils.clamp(pinch / d, 0.8, 1.25));
+        pinch = d;
+      }
+    });
+    const endTouch = (e) => { touches.delete(e.pointerId); if (touches.size < 2) pinch = 0; };
+    el.addEventListener('pointerup', endTouch);
+    el.addEventListener('pointercancel', endTouch);
+    el.addEventListener('pointerdown', (e) => {
+      if (this.mode !== 'walk' || look || touches.size > 1 || (e.pointerType === 'mouse' && e.button !== 0)) return;
       look = { id: e.pointerId, x: e.clientX, y: e.clientY };
       try { el.setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
       e.preventDefault();
@@ -455,7 +477,7 @@ export class Engine {
     window.addEventListener('blur', () => stopLook());
     el.addEventListener('wheel', (e) => {
       if (this.mode !== 'walk') return;
-      this.walk.camDist = THREE.MathUtils.clamp(this.walk.camDist + e.deltaY * 0.004, 1.8, 9);
+      this.zoom(e.deltaY > 0 ? 1.08 : 0.93);
     }, { passive: true });
   }
 
@@ -482,6 +504,7 @@ export class Engine {
     if (this.mode !== 'walk') return;
     this.mode = 'orbit';
     this.controls.enabled = true;
+    if (this.camera.fov !== this._baseFov) { this.camera.fov = this._baseFov; this.camera.updateProjectionMatrix(); }
     this.avatar.group.visible = false;
     this.walk.keys.clear();
     this.walk.joy.x = this.walk.joy.y = 0;
@@ -494,6 +517,24 @@ export class Engine {
     this.walk.view = this.walk.view === 'third' ? 'first' : 'third';
     this.avatar.group.visible = this.mode === 'walk' && this.walk.view === 'third';
     this.hooks.onWalkView && this.hooks.onWalkView(this.walk.view);
+  }
+
+  /** Zoom kamera: k < 1 mendekat, k > 1 menjauh. */
+  zoom(k) {
+    if (this.mode === 'walk') {
+      if (this.walk.view === 'first') {
+        this.camera.fov = THREE.MathUtils.clamp(this.camera.fov * k, 22, 75);
+        this.camera.updateProjectionMatrix();
+      } else {
+        this.walk.camDist = THREE.MathUtils.clamp(this.walk.camDist * k, 1.4, 12);
+      }
+      return;
+    }
+    const t = this.controls.target;
+    const off = this.camera.position.clone().sub(t);
+    const d = THREE.MathUtils.clamp(off.length() * k, this.controls.minDistance, this.controls.maxDistance);
+    off.setLength(d);
+    this._animateCam(t.clone().add(off), t.clone(), 0.25);
   }
 
   setJoystick(x, y) { this.walk.joy.x = x; this.walk.joy.y = y; }

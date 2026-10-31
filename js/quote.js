@@ -20,8 +20,7 @@ export function buildQuote(d) {
   return `
   <header class="q-head">
     <div class="q-brand">
-      <span class="q-mark"><svg viewBox="0 0 32 32"><path d="M9 8h7a8 8 0 010 16H9z"/></svg></span>
-      <div><b>${esc(d.brand.name)}</b><span>Signage &amp; Advertising</span></div>
+      <img class="q-logo" src="assets/logo.png" alt="${esc(d.brand.name)}" />
     </div>
     <div class="q-meta">
       <h1>Penawaran Harga</h1>
