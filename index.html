@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
+  <title>DAZPRO Signage Studio — Desain Neon Box & Huruf Timbul 3D</title>
+  <meta name="description" content="Rancang neon box, huruf timbul, dan signage usaha Anda dalam 3D interaktif. Atur lokasi, font, bahan, LED, dan konstruksi — lihat estimasi biaya seketika." />
+  <meta name="theme-color" content="#0f172a" />
+  <meta property="og:title" content="DAZPRO Signage Studio 3D" />
+  <meta property="og:description" content="Desain signage usaha Anda dalam 3D: neon box, huruf timbul, LED, bahan, dan lokasi pemasangan." />
+  <meta property="og:locale" content="id_ID" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Cpath d='M9 8h7a8 8 0 010 16H9z' fill='none' stroke='%235b8cff' stroke-width='3'/%3E%3C/svg%3E" />
+  <script type="importmap">
+  { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 8h7a8 8 0 010 16H9z" /></svg></span>
+      <span class="brand-name">DAZPRO<span class="brand-sub">Signage Studio</span></span>
+    </a>
+    <nav class="topnav">
+      <a href="#studio">Studio 3D</a>
+      <a href="#cara-kerja">Cara kerja</a>
+      <a href="#produk">Produk</a>
+      <a class="btn btn-sm btn-ghost" id="wa-top" target="_blank" rel="noopener">Konsultasi</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow"><span class="dot"></span> Konfigurator signage 3D</p>
+        <h1>Lihat signage usaha Anda <span class="muted">sebelum dipasang.</span></h1>
+      </div>
+      <p class="hero-sub">Pilih lokasi, model, font, bahan, dan lampu LED. Seret signage ke posisi yang pas, cek tampilan siang–malam, lalu kirim desainnya untuk penawaran harga.</p>
+    </section>
+
+    <section class="studio" id="studio">
+      <aside class="panel" id="panel">
+        <div class="panel-head">
+          <div class="steps" id="tabs" role="tablist"></div>
+        </div>
+        <div class="panel-body" id="panel-body"></div>
+      </aside>
+
+      <div class="viewport-wrap">
+        <div class="viewport" id="viewport">
+          <div class="loader" id="loader"><div class="spinner"></div><span>Menyiapkan studio 3D…</span></div>
+
+          <div class="vp-top">
+            <div class="vp-chip live"><span class="pulse"></span><span id="vp-title">Live preview</span></div>
+            <div class="seg" id="time-seg"></div>
+          </div>
+
+          <div class="vp-cams" id="cams"></div>
+
+          <div class="vp-tools">
+            <button class="icon-btn" id="btn-shot" title="Simpan gambar (PNG)" aria-label="Simpan gambar"></button>
+            <button class="icon-btn" id="btn-full" title="Layar penuh" aria-label="Layar penuh"></button>
+          </div>
+
+          <div class="vp-hint" id="vp-hint">Seret untuk memutar · klik-kanan / dua jari untuk geser · scroll untuk zoom · <b>seret signage</b> untuk memindah</div>
+          <div class="vp-spec" id="vp-spec"></div>
+          <div class="vp-warn" id="vp-warn" hidden></div>
+
+          <div class="walk-ui" id="walk-ui" hidden>
+            <div class="walk-help">WASD / panah untuk jalan · Shift lari · seret untuk menoleh · V ganti sudut · Esc keluar</div>
+            <div class="joy" id="joy"><div class="joy-knob" id="joy-knob"></div></div>
+            <div class="walk-btns">
+              <button class="btn btn-sm btn-dark" id="walk-view">Orang pertama</button>
+              <button class="btn btn-sm btn-dark" id="walk-run">Lari</button>
+              <button class="btn btn-sm btn-light" id="walk-exit">Keluar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary" id="summary">
+          <div class="sum-left">
+            <div class="sum-title" id="sum-title">Desain signage</div>
+            <div class="sum-meta" id="sum-meta"></div>
+          </div>
+          <button class="sum-total" id="sum-total" title="Lihat rincian">
+            <span class="lbl">Estimasi biaya</span>
+            <span class="val" id="sum-price">Rp0</span>
+          </button>
+          <div class="sum-actions">
+            <div class="menu-wrap">
+              <button class="btn btn-ghost-dark" id="btn-project">Proyek</button>
+              <div class="menu" id="project-menu" hidden>
+                <button data-act="save">Simpan di perangkat</button>
+                <button data-act="load">Buka simpanan…</button>
+                <button data-act="export">Export .json</button>
+                <button data-act="import">Import .json</button>
+                <button data-act="reset">Mulai dari awal</button>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btn-submit"><span class="full">Ajukan Desain</span><span class="short">Ajukan</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="how" id="cara-kerja">
+      <div class="how-item"><span class="num">01 / DESAIN</span><h3>Atur signage Anda</h3><p>Pilih lokasi pemasangan, model neon box atau huruf timbul, font, ukuran, bahan muka &amp; samping, serta warna LED.</p></div>
+      <div class="how-item"><span class="num">02 / LIHAT</span><h3>Cek dalam 3D</h3><p>Pindahkan posisi, bandingkan tampilan siang, senja, dan malam, atau jalan-jalan di sekitar lokasi dengan mode Jalan 3D.</p></div>
+      <div class="how-item"><span class="num">03 / AJUKAN</span><h3>Dapatkan penawaran</h3><p>Kirim desain beserta rincian ke WhatsApp kami. Tim DAZPRO akan mengonfirmasi harga final &amp; jadwal survei.</p></div>
+    </section>
+
+    <section class="products" id="produk">
+      <h2>Produk yang bisa Anda rancang</h2>
+      <div class="prod-grid">
+        <div class="prod"><b>Neon Box</b><span>Kotak, persegi, atau bulat — muka acrylic dengan LED modul di dalam.</span></div>
+        <div class="prod"><b>Huruf Timbul</b><span>Menyala (front-lit, halo, samping) atau tanpa lampu.</span></div>
+        <div class="prod"><b>Bahan</b><span>Acrylic, stainless hairline, stainless gold, ACP, dan mirror.</span></div>
+        <div class="prod"><b>Konstruksi</b><span>Rangka besi hollow untuk atas gedung &amp; atap kafe, tiang, dan totem.</span></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div><b>DAZPRO</b> · Signage &amp; Advertising</div>
+    <div id="foot-info"></div>
+    <div class="muted">Tampilan 3D bersifat ilustrasi. Ukuran mendekati skala asli; harga final dikonfirmasi setelah survei.</div>
+  </footer>
+
+  <!-- Laci rincian harga -->
+  <div class="drawer" id="drawer" hidden>
+    <div class="drawer-card">
+      <div class="drawer-head"><h3>Rincian estimasi</h3><button class="icon-btn" data-close aria-label="Tutup">✕</button></div>
+      <div id="drawer-body"></div>
+    </div>
+  </div>
+
+  <!-- Modal pengajuan -->
+  <div class="drawer" id="submit-modal" hidden>
+    <div class="drawer-card">
+      <div class="drawer-head"><h3>Ajukan desain</h3><button class="icon-btn" data-close aria-label="Tutup">✕</button></div>
+      <form id="submit-form" class="form">
+        <img id="submit-preview" alt="Pratinjau desain" />
+        <label>Nama<input name="name" required placeholder="Nama Anda" /></label>
+        <label>Nama usaha<input name="biz" placeholder="Contoh: Kopi Senja" /></label>
+        <label>Kota / lokasi pemasangan<input name="city" placeholder="Contoh: Surabaya" /></label>
+        <label>Catatan<textarea name="note" rows="3" placeholder="Tinggi gedung, akses listrik, deadline, dll."></textarea></label>
+        <p class="muted small">Gambar desain akan diunduh otomatis — lampirkan di chat WhatsApp agar tim kami bisa melihatnya.</p>
+        <button class="btn btn-primary btn-block" type="submit">Kirim via WhatsApp</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="drawer" id="load-modal" hidden>
+    <div class="drawer-card">
+      <div class="drawer-head"><h3>Simpanan proyek</h3><button class="icon-btn" data-close aria-label="Tutup">✕</button></div>
+      <div id="load-list"></div>
+    </div>
+  </div>
+
+  <input type="file" id="file-json" accept=".json,application/json" hidden />
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

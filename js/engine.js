@@ -1,0 +1,446 @@
+// Mesin 3D: renderer, kamera, kontrol, pencahayaan waktu, efek LED, mode jalan, drag signage
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { makeSky } from './environment.js';
+
+const TIME = {
+  day:   { top: '#5f9fd8', bottom: '#e6eef5', glow: '#ffffff', glowAmt: 0.05, hemiSky: '#e4f0ff', hemiGround: '#8b877c', hemi: 0.6, sun: '#fff4e2', sunI: 3.3, sunPos: [28, 48, 30], exp: 0.95, bloom: 0.35, thr: 1.6, env: 0.45, windows: 0, lamps: 0, fog: '#dfe7ee' },
+  dusk:  { top: '#1f2d55', bottom: '#f09a68', glow: '#ff9a5a', glowAmt: 0.35, hemiSky: '#9fb0dc', hemiGround: '#4a3a30', hemi: 0.42, sun: '#ff9c5a', sunI: 1.1, sunPos: [-45, 10, 26], exp: 0.95, bloom: 0.6, thr: 1.0, env: 0.28, windows: 0.55, lamps: 0.7, fog: '#a98a86' },
+  night: { top: '#03050b', bottom: '#111a2d', glow: '#2a3f6a', glowAmt: 0.25, hemiSky: '#2f3d60', hemiGround: '#0a0a0d', hemi: 0.22, sun: '#9fb4ff', sunI: 0.2, sunPos: [20, 40, -15], exp: 1.0, bloom: 0.55, thr: 0.95, env: 0.1, windows: 1, lamps: 1.4, fog: '#0d1320' },
+};
+
+export class Engine {
+  constructor(container, hooks = {}) {
+    this.container = container;
+    this.hooks = hooks;
+    this.clock = new THREE.Clock();
+    this.fx = { glow: [], halo: null, light: null, lightBase: 0, effect: 'static', ledColor: new THREE.Color('#fff'), on: true };
+    this.ctx = { windowMats: [], lampMats: [], lampLights: [] };
+    this.timeKey = 'dusk';
+    this.mode = 'orbit';
+
+    const r = (this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' }));
+    r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    r.shadowMap.enabled = true;
+    r.shadowMap.type = THREE.PCFSoftShadowMap;
+    r.toneMapping = THREE.ACESFilmicToneMapping;
+    r.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(r.domElement);
+    r.domElement.classList.add('gl');
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 900);
+    this.camera.position.set(8, 4, 18);
+
+    const pm = new THREE.PMREMGenerator(r);
+    this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    this.sky = makeSky();
+    this.scene.add(this.sky);
+
+    this.hemi = new THREE.HemisphereLight('#fff', '#888', 1);
+    this.scene.add(this.hemi);
+    this.sun = new THREE.DirectionalLight('#fff', 2);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.03;
+    const sc = this.sun.shadow.camera;
+    sc.left = -30; sc.right = 30; sc.top = 30; sc.bottom = -30; sc.near = 1; sc.far = 160;
+    this.scene.add(this.sun, this.sun.target);
+
+    this.controls = new OrbitControls(this.camera, r.domElement);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.08;
+    this.controls.maxPolarAngle = Math.PI * 0.495;
+    this.controls.minDistance = 0.8;
+    this.controls.maxDistance = 120;
+    this.controls.screenSpacePanning = true;
+
+    this.composer = new EffectComposer(r);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.3, 1.0);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
+
+    this.roots = { city: new THREE.Group(), hero: new THREE.Group(), support: new THREE.Group(), sign: new THREE.Group() };
+    for (const g of Object.values(this.roots)) this.scene.add(g);
+
+    this._setupWalk();
+    this._setupDrag();
+    this._camAnim = null;
+
+    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(container);
+    this.resize();
+    this.renderer.setAnimationLoop(() => this._tick());
+  }
+
+  resize() {
+    const w = this.container.clientWidth || 1, h = this.container.clientHeight || 1;
+    this.renderer.setSize(w, h, false);
+    this.composer.setSize(w, h);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+  }
+
+  // ---------- waktu & latar ----------
+  setTime(key, bg, bgTexture) {
+    this.timeKey = key;
+    const t = TIME[key] || TIME.day;
+    const u = this.sky.material.uniforms;
+    u.top.value.set(t.top); u.bottom.value.set(t.bottom); u.glowCol.value.set(t.glow); u.glowAmt.value = t.glowAmt;
+    this.hemi.color.set(t.hemiSky); this.hemi.groundColor.set(t.hemiGround); this.hemi.intensity = t.hemi;
+    this.sun.color.set(t.sun); this.sun.intensity = t.sunI;
+    this.sunOffset = new THREE.Vector3(...t.sunPos);
+    this.renderer.toneMappingExposure = t.exp;
+    this.bloom.strength = t.bloom;
+    this.bloom.threshold = t.thr;
+    this.scene.environmentIntensity = t.env;
+    this.windowLevel = t.windows;
+    this.lampLevel = t.lamps;
+    this._applyEnvLevels();
+    // latar
+    this.sky.visible = !bg || bg.mode === 'sky';
+    if (bg && bg.mode === 'color') this.scene.background = new THREE.Color(bg.color);
+    else if (bg && bg.mode === 'studio') this.scene.background = new THREE.Color(key === 'night' ? '#15181e' : '#d5d9de');
+    else if (bg && bg.mode === 'image' && bgTexture) this.scene.background = bgTexture;
+    else { this.scene.background = null; this.sky.visible = true; }
+    this.scene.fog = this.sky.visible ? new THREE.Fog(t.fog, 90, 380) : null;
+  }
+
+  _applyEnvLevels() {
+    for (const m of this.ctx.windowMats) m.emissiveIntensity = this.windowLevel * 0.55;
+    for (const m of this.ctx.lampMats) m.emissiveIntensity = this.lampLevel * 1.6;
+    for (const l of this.ctx.lampLights) l.intensity = this.lampLevel * 14;
+  }
+
+  setCity(group, ctx) {
+    this._replace('city', group);
+    this.ctx.windowMats.push(...ctx.windowMats);
+    this.ctx.lampMats.push(...ctx.lampMats);
+    this.ctx.lampLights.push(...ctx.lampLights);
+    this._applyEnvLevels();
+  }
+  setHero(group, ctx) {
+    // simpan material kota, ganti material hero
+    this.ctx.windowMats = this.ctx.windowMats.filter((m) => !m.userData.hero);
+    ctx.windowMats.forEach((m) => (m.userData.hero = true));
+    this.ctx.windowMats.push(...ctx.windowMats);
+    this._replace('hero', group);
+    this._applyEnvLevels();
+  }
+  setSupport(group) { this._replace('support', group); }
+  setSign(group, fx) {
+    this._replace('sign', group);
+    this.fx = { ...this.fx, ...fx };
+    for (const g of this.fx.glow || []) g.mat.userData.baseEmissive = g.mat.emissive.clone();
+  }
+  setCityVisible(v) { this.roots.city.visible = v; }
+
+  _replace(key, group) {
+    const root = this.roots[key];
+    for (const c of [...root.children]) {
+      root.remove(c);
+      c.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+        for (const m of mats) {
+          for (const k of ['map', 'emissiveMap']) if (m[k] && !m[k].userData.shared && !m[k].userData.keep) m[k].dispose();
+          m.dispose();
+        }
+      });
+    }
+    if (group) root.add(group);
+  }
+
+  setSignTransform(pos, rotY) {
+    this.roots.sign.position.copy(pos);
+    this.roots.sign.rotation.set(0, rotY, 0);
+  }
+  setSupportTransform(pos, rotY) {
+    this.roots.support.position.copy(pos);
+    this.roots.support.rotation.set(0, rotY, 0);
+  }
+
+  // ---------- kamera ----------
+  focus(target, size) { this.focusTarget = target.clone(); this.focusSize = size; }
+
+  cameraPreset(name, instant = false) {
+    if (this.mode === 'walk') this.exitWalk();
+    const t = this.focusTarget || new THREE.Vector3(0, 3, 0);
+    const s = this.focusSize || { w: 3, h: 1 };
+    const yaw = this.roots.sign.rotation.y;
+    const d = Math.max(s.w, s.h * 2.2) * 1.45 + 3.2;
+    const local = {
+      hero: new THREE.Vector3(d * 0.42, s.h * 0.35 + 1.2, d * 1.05),
+      front: new THREE.Vector3(0, s.h * 0.15 + 0.4, d),
+      side: new THREE.Vector3(d * 0.85, s.h * 0.4 + 1, d * 0.45),
+      top: new THREE.Vector3(0.01, d * 0.95, d * 0.45),
+      close: new THREE.Vector3(s.w * 0.12, s.h * 0.05, Math.max(1.3, d * 0.4)),
+      street: null,
+    }[name];
+    let pos;
+    if (name === 'street') {
+      // sudut pandang pejalan kaki di trotoar seberang
+      pos = new THREE.Vector3(t.x + 6, 1.65, Math.max(t.z + 6, 14.5));
+    } else {
+      pos = local.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(t);
+      pos.y = Math.max(pos.y, 0.4);
+    }
+    this._animateCam(pos, t.clone(), instant ? 0 : 0.9);
+  }
+
+  _animateCam(pos, target, dur) {
+    if (!dur) {
+      this.camera.position.copy(pos);
+      this.controls.target.copy(target);
+      this.controls.update();
+      return;
+    }
+    this._camAnim = { p0: this.camera.position.clone(), t0: this.controls.target.clone(), p1: pos, t1: target, t: 0, dur };
+  }
+
+  // ---------- efek LED per frame ----------
+  _applyFx(time) {
+    const f = this.fx;
+    let k = 1;
+    if (f.effect === 'breath') k = 0.55 + 0.45 * Math.sin(time * 2.2);
+    else if (f.effect === 'blink') k = Math.sin(time * Math.PI * 1.6) > -0.2 ? 1 : 0.04;
+    let col = null;
+    if (f.effect === 'rgb') col = new THREE.Color().setHSL((time * 0.12) % 1, 1, 0.55);
+    const tk = this.timeKey === 'day' ? 0.55 : this.timeKey === 'dusk' ? 0.85 : 1;
+    for (const g of f.glow || []) {
+      g.mat.emissiveIntensity = g.base * k * tk;
+      if (col) g.mat.emissive.copy(col); else if (g.mat.userData.baseEmissive) g.mat.emissive.copy(g.mat.userData.baseEmissive);
+    }
+    if (f.halo) {
+      f.halo.mat.opacity = Math.min(1, f.halo.base * k * (this.timeKey === 'day' ? 0.5 : 1));
+      if (col) f.halo.mat.color.copy(col); else f.halo.mat.color.copy(f.ledColor);
+    }
+    if (f.light) {
+      const nightK = this.timeKey === 'night' ? 1 : this.timeKey === 'dusk' ? 0.6 : 0.15;
+      f.light.intensity = f.lightBase * k * nightK;
+      if (col) f.light.color.copy(col); else f.light.color.copy(f.ledColor);
+    }
+  }
+
+  _tick() {
+    const dt = Math.min(this.clock.getDelta(), 0.05);
+    const time = this.clock.elapsedTime;
+    if (this._camAnim) {
+      const a = this._camAnim;
+      a.t += dt / a.dur;
+      const e = a.t >= 1 ? 1 : 1 - Math.pow(1 - a.t, 3);
+      this.camera.position.lerpVectors(a.p0, a.p1, e);
+      this.controls.target.lerpVectors(a.t0, a.t1, e);
+      if (a.t >= 1) this._camAnim = null;
+    }
+    if (this.mode === 'walk') this._walkUpdate(dt);
+    else this.controls.update();
+    // matahari mengikuti area fokus agar bayangan tajam
+    const ft = this.focusTarget || new THREE.Vector3();
+    if (this.sunOffset) {
+      this.sun.position.copy(ft).add(this.sunOffset);
+      this.sun.target.position.copy(ft);
+    }
+    this.sky.position.copy(this.camera.position);
+    this._applyFx(time);
+    this.composer.render();
+  }
+
+  // ---------- drag signage ----------
+  _setupDrag() {
+    const el = this.renderer.domElement;
+    const ray = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const hitPoint = new THREE.Vector3();
+    let drag = null;
+    const toNdc = (e) => {
+      const r = el.getBoundingClientRect();
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, this.camera);
+    };
+    const pickSign = () => {
+      const meshes = [];
+      this.roots.sign.traverse((o) => { if (o.isMesh && !o.userData.noPick && o.visible) meshes.push(o); });
+      return ray.intersectObjects(meshes, false)[0];
+    };
+    el.addEventListener('pointerdown', (e) => {
+      if (this.mode !== 'orbit' || e.button !== 0 || !this.dragPlane) return;
+      toNdc(e);
+      const hit = pickSign();
+      if (!hit) return;
+      if (!ray.ray.intersectPlane(this.dragPlane, hitPoint)) return;
+      drag = { offset: new THREE.Vector3().subVectors(this.dragOrigin(), hitPoint), id: e.pointerId };
+      this.controls.enabled = false;
+      el.setPointerCapture(e.pointerId);
+      el.style.cursor = 'grabbing';
+      this.hooks.onDragStart && this.hooks.onDragStart();
+      e.preventDefault();
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (this.mode !== 'orbit') return;
+      toNdc(e);
+      if (drag) {
+        if (ray.ray.intersectPlane(this.dragPlane, hitPoint)) {
+          this.hooks.onDrag && this.hooks.onDrag(hitPoint.add(drag.offset));
+        }
+        return;
+      }
+      if (e.pointerType === 'mouse' && !e.buttons) el.style.cursor = pickSign() ? 'grab' : '';
+    });
+    const end = (e) => {
+      if (!drag) return;
+      drag = null;
+      this.controls.enabled = true;
+      el.style.cursor = '';
+      try { el.releasePointerCapture(e.pointerId); } catch (_) { /* noop */ }
+      this.hooks.onDragEnd && this.hooks.onDragEnd();
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+
+  /** plane: THREE.Plane, origin: () => Vector3 posisi acuan signage saat ini */
+  setDragPlane(plane, originFn) { this.dragPlane = plane; this.dragOrigin = originFn; }
+
+  // ---------- mode jalan 3D (third / first person) ----------
+  _setupWalk() {
+    const av = new THREE.Group();
+    const skin = new THREE.MeshStandardMaterial({ color: '#e0b48f', roughness: 0.7 });
+    const shirt = new THREE.MeshStandardMaterial({ color: '#2f5bff', roughness: 0.6 });
+    const pants = new THREE.MeshStandardMaterial({ color: '#1d2230', roughness: 0.8 });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.5, 6, 12), shirt); body.position.y = 1.15;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), skin); head.position.y = 1.62;
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.145, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), pants); hair.position.y = 1.64;
+    const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.6, 4, 8), pants); legL.position.set(-0.1, 0.42, 0);
+    const legR = legL.clone(); legR.position.x = 0.1;
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.5, 4, 8), shirt); armL.position.set(-0.28, 1.15, 0);
+    const armR = armL.clone(); armR.position.x = 0.28;
+    av.add(body, head, hair, legL, legR, armL, armR);
+    av.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.userData.noPick = true; } });
+    av.visible = false;
+    this.scene.add(av);
+    this.avatar = { group: av, legL, legR, armL, armR, phase: 0 };
+    this.walk = { yaw: Math.PI, pitch: -0.08, keys: new Set(), joy: { x: 0, y: 0 }, view: 'third', sprint: false, camDist: 4.6 };
+
+    const isTyping = (e) => /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+    window.addEventListener('keydown', (e) => {
+      if (this.mode !== 'walk' || isTyping(e)) return;
+      if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight', 'KeyQ', 'KeyE'].includes(e.code)) {
+        this.walk.keys.add(e.code); e.preventDefault();
+      }
+      if (e.code === 'KeyV') this.toggleWalkView();
+      if (e.code === 'Escape') this.exitWalk();
+    });
+    window.addEventListener('keyup', (e) => this.walk.keys.delete(e.code));
+    window.addEventListener('blur', () => this.walk.keys.clear());
+
+    // drag untuk melihat sekeliling saat jalan
+    const el = this.renderer.domElement;
+    let look = null;
+    el.addEventListener('pointerdown', (e) => { if (this.mode === 'walk') { look = { x: e.clientX, y: e.clientY }; el.setPointerCapture(e.pointerId); } });
+    el.addEventListener('pointermove', (e) => {
+      if (this.mode !== 'walk' || !look) return;
+      this.walk.yaw -= (e.clientX - look.x) * 0.005;
+      this.walk.pitch = THREE.MathUtils.clamp(this.walk.pitch - (e.clientY - look.y) * 0.004, -0.9, 0.9);
+      look = { x: e.clientX, y: e.clientY };
+    });
+    el.addEventListener('pointerup', () => (look = null));
+    el.addEventListener('wheel', (e) => {
+      if (this.mode !== 'walk') return;
+      this.walk.camDist = THREE.MathUtils.clamp(this.walk.camDist + e.deltaY * 0.004, 1.8, 9);
+    }, { passive: true });
+  }
+
+  enterWalk(bounds) {
+    this.mode = 'walk';
+    this.walkBounds = bounds;
+    this.controls.enabled = false;
+    this._camAnim = null;
+    const t = this.focusTarget || new THREE.Vector3();
+    const start = new THREE.Vector3(t.x + 3, 0.15, Math.min(Math.max(t.z + 7, 9), 16));
+    if (bounds && bounds.startZ !== undefined) start.z = bounds.startZ;
+    this.avatar.group.position.copy(start);
+    // hadapkan ke signage
+    this.walk.yaw = Math.atan2(t.x - start.x, t.z - start.z) + Math.PI;
+    this.walk.pitch = -0.05 + Math.min(0.5, Math.max(0, (t.y - 2) / 25));
+    this.avatar.group.visible = this.walk.view === 'third';
+    this.hooks.onModeChange && this.hooks.onModeChange('walk');
+  }
+
+  exitWalk() {
+    if (this.mode !== 'walk') return;
+    this.mode = 'orbit';
+    this.controls.enabled = true;
+    this.avatar.group.visible = false;
+    this.walk.keys.clear();
+    this.walk.joy.x = this.walk.joy.y = 0;
+    this.hooks.onModeChange && this.hooks.onModeChange('orbit');
+    this.cameraPreset('front');
+  }
+
+  toggleWalkView() {
+    this.walk.view = this.walk.view === 'third' ? 'first' : 'third';
+    this.avatar.group.visible = this.mode === 'walk' && this.walk.view === 'third';
+    this.hooks.onWalkView && this.hooks.onWalkView(this.walk.view);
+  }
+
+  setJoystick(x, y) { this.walk.joy.x = x; this.walk.joy.y = y; }
+  setSprint(v) { this.walk.sprint = v; }
+
+  _walkUpdate(dt) {
+    const w = this.walk, k = w.keys;
+    let fwd = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) + w.joy.y;
+    let str = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + w.joy.x * 0.6;
+    const turn = (k.has('ArrowRight') || k.has('KeyE') ? 1 : 0) - (k.has('ArrowLeft') || k.has('KeyQ') ? 1 : 0) + w.joy.x * 0.6;
+    w.yaw -= turn * dt * 1.8;
+    fwd = THREE.MathUtils.clamp(fwd, -1, 1); str = THREE.MathUtils.clamp(str, -1, 1);
+    const speed = (w.sprint || k.has('ShiftLeft') || k.has('ShiftRight') ? 6.5 : 3.0) * dt;
+    const a = this.avatar;
+    const dir = new THREE.Vector3(Math.sin(w.yaw), 0, Math.cos(w.yaw)).multiplyScalar(-1); // arah hadap kamera
+    const right = new THREE.Vector3(-dir.z, 0, dir.x);
+    const move = dir.multiplyScalar(fwd).add(right.multiplyScalar(str));
+    const moving = move.lengthSq() > 0.0001;
+    if (moving) {
+      move.normalize().multiplyScalar(speed);
+      a.group.position.add(move);
+      const b = this.walkBounds || { x: [-60, 60], z: [-30, 30] };
+      a.group.position.x = THREE.MathUtils.clamp(a.group.position.x, b.x[0], b.x[1]);
+      a.group.position.z = THREE.MathUtils.clamp(a.group.position.z, b.z[0], b.z[1]);
+      const targetRot = Math.atan2(move.x, move.z);
+      let d = targetRot - a.group.rotation.y;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      a.group.rotation.y += d * Math.min(1, dt * 10);
+      a.phase += dt * (speed / dt) * 2.6;
+    } else {
+      a.phase *= 0.9;
+    }
+    const sw = Math.sin(a.phase) * (moving ? 0.5 : 0);
+    a.legL.rotation.x = sw; a.legR.rotation.x = -sw; a.armL.rotation.x = -sw * 0.8; a.armR.rotation.x = sw * 0.8;
+    a.group.position.y = a.group.position.z > 3.9 && a.group.position.z < 7.1 ? 0.15 : a.group.position.z > 14 && a.group.position.z < 17 ? 0.15 : 0;
+
+    const head = a.group.position.clone().add(new THREE.Vector3(0, 1.62, 0));
+    const lookDir = new THREE.Vector3(-Math.sin(w.yaw) * Math.cos(w.pitch), Math.sin(w.pitch), -Math.cos(w.yaw) * Math.cos(w.pitch));
+    if (w.view === 'first') {
+      this.camera.position.copy(head);
+      this.camera.lookAt(head.clone().add(lookDir));
+    } else {
+      const camPos = head.clone().addScaledVector(lookDir, -w.camDist).add(new THREE.Vector3(0, 0.6, 0));
+      camPos.y = Math.max(camPos.y, 0.4);
+      this.camera.position.lerp(camPos, Math.min(1, dt * 8));
+      this.camera.lookAt(head.clone().addScaledVector(lookDir, 2).add(new THREE.Vector3(0, 0.1, 0)));
+    }
+  }
+
+  screenshot() {
+    this.composer.render();
+    return this.renderer.domElement.toDataURL('image/png');
+  }
+}

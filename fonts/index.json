@@ -1,0 +1,77 @@
+[
+ {
+  "id": "poppins",
+  "name": "Poppins Bold",
+  "cat": "Modern"
+ },
+ {
+  "id": "outfit",
+  "name": "Outfit Bold",
+  "cat": "Modern"
+ },
+ {
+  "id": "worksans",
+  "name": "Work Sans Bold",
+  "cat": "Modern"
+ },
+ {
+  "id": "bricolage",
+  "name": "Bricolage Grotesque",
+  "cat": "Modern"
+ },
+ {
+  "id": "bigshoulders",
+  "name": "Big Shoulders",
+  "cat": "Kondensasi"
+ },
+ {
+  "id": "boldonse",
+  "name": "Boldonse",
+  "cat": "Display"
+ },
+ {
+  "id": "ericaone",
+  "name": "Erica One",
+  "cat": "Display"
+ },
+ {
+  "id": "tektur",
+  "name": "Tektur",
+  "cat": "Teknologi"
+ },
+ {
+  "id": "lora",
+  "name": "Lora Bold",
+  "cat": "Serif"
+ },
+ {
+  "id": "youngserif",
+  "name": "Young Serif",
+  "cat": "Serif"
+ },
+ {
+  "id": "gloock",
+  "name": "Gloock",
+  "cat": "Serif"
+ },
+ {
+  "id": "italiana",
+  "name": "Italiana",
+  "cat": "Elegan"
+ },
+ {
+  "id": "poiret",
+  "name": "Poiret One",
+  "cat": "Elegan"
+ },
+ {
+  "id": "chorus",
+  "name": "Chorus Script",
+  "cat": "Script"
+ },
+ {
+  "id": "handwrite",
+  "name": "Nothing You Could Do",
+  "cat": "Script"
+ }
+]

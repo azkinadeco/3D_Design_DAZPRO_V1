@@ -1,0 +1,35 @@
+// Ikon SVG garis sederhana (24px)
+const s = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
+const big = (d) => `<svg viewBox="0 0 64 36" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+
+export const ICONS = {
+  pin: s('<path d="M12 21s-7-6.2-7-11.5A7 7 0 0119 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),
+  shapes: s('<rect x="3" y="4" width="10" height="7" rx="1.5"/><circle cx="17" cy="16" r="4"/><path d="M4 20l4-6 4 6z"/>'),
+  type: s('<path d="M5 6V4h14v2M12 4v16M9 20h6"/>'),
+  layers: s('<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>'),
+  bulb: s('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.5 10.9c.6.4 1 1.1 1 1.9V16h5v-.2c0-.8.4-1.5 1-1.9A6 6 0 0012 3z"/>'),
+  frame: s('<path d="M4 20V8M20 20V8M4 8h16M4 14h16M4 8l16 6M4 20h16"/>'),
+  front: s('<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 12h6"/>'),
+  side: s('<path d="M4 7l8-3 8 3v10l-8 3-8-3z"/><path d="M12 4v16"/>'),
+  top: s('<path d="M12 3l9 5-9 5-9-5z"/><path d="M12 13v8"/>'),
+  close: s('<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5M11 8v6M8 11h6"/>'),
+  street: s('<path d="M5 21l3-18M19 21l-3-18M12 4v3M12 11v3M12 18v3"/>'),
+  walk: s('<circle cx="13" cy="4.5" r="1.8"/><path d="M10 21l2-6 3 3v3M9.5 11l2.5-3 3 2 2 2.5M12 8l-1.5 7"/>'),
+  sun: s('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  dusk: s('<path d="M3 18h18M6 14a6 6 0 0112 0M12 4v3M4.9 8.5l1.6 1.2M19.1 8.5l-1.6 1.2"/>'),
+  moon: s('<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>'),
+  camera: s('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'),
+  expand: s('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
+  upload: s('<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'),
+  // ilustrasi kartu lokasi
+  rooftop: big('<rect x="18" y="12" width="28" height="23" rx="1"/><path d="M22 17h4M30 17h4M38 17h4M22 22h4M30 22h4M38 22h4M22 27h4M30 27h4M38 27h4"/><path d="M24 12V9M40 12V9M24 9l16 0"/><rect x="21" y="2" width="22" height="7" rx="1" stroke="#2f5bff"/>'),
+  totem: big('<path d="M4 35h56"/><rect x="26" y="4" width="12" height="31" rx="1"/><rect x="27.5" y="6" width="9" height="8" rx="1" stroke="#2f5bff"/><path d="M24 35h16"/>'),
+  cafe: big('<path d="M4 35h56"/><rect x="12" y="16" width="40" height="19" rx="1"/><path d="M10 21h44l-3-4H13z"/><path d="M16 25h20v10M42 25h6v10"/><rect x="20" y="6" width="24" height="7" rx="1" stroke="#2f5bff"/><path d="M24 13v3M40 13v3"/>'),
+  pole: big('<path d="M4 31h56M4 35h56"/><path d="M32 31V15"/><rect x="20" y="4" width="24" height="11" rx="1" stroke="#2f5bff"/>'),
+  wall: big('<rect x="6" y="3" width="52" height="30" rx="1"/><path d="M6 11h52M6 19h52M6 27h52M18 3v8M34 3v8M50 3v8M26 11v8M42 11v8M18 19v8M34 19v8M50 19v8"/><rect x="18" y="13" width="28" height="8" rx="1" stroke="#2f5bff" fill="#eef2ff"/>'),
+  box_rect: big('<rect x="10" y="9" width="44" height="18" rx="2"/><path d="M18 18h28" stroke="#2f5bff"/>'),
+  box_square: big('<rect x="20" y="4" width="24" height="28" rx="2"/><path d="M26 18h12" stroke="#2f5bff"/>'),
+  box_round: big('<circle cx="32" cy="18" r="14"/><path d="M25 18h14" stroke="#2f5bff"/>'),
+  letters_lit: big('<path d="M10 28l6-20 6 20M12 22h8M28 8v20h8M42 8h10M47 8v20" stroke="#2f5bff"/><path d="M8 32h48" opacity=".4"/>'),
+  letters_unlit: big('<path d="M10 28l6-20 6 20M12 22h8M28 8v20h8M42 8h10M47 8v20"/>'),
+};
