@@ -38,6 +38,7 @@ export const SIGN_TYPES = [
   { id: 'box_round',    name: 'Neon Box Bulat',      desc: 'Lingkaran', group: 'box', lit: true },
   { id: 'letters_lit',  name: 'Huruf Timbul Menyala', desc: 'Huruf 3D dengan LED', group: 'letters', lit: true },
   { id: 'letters_unlit',name: 'Huruf Timbul Non-Lampu', desc: 'Huruf 3D tanpa LED', group: 'letters', lit: false },
+  { id: 'neon_flex',    name: 'Neon Flex',           desc: 'Selang LED neon di papan acrylic', group: 'neon', lit: true },
 ];
 
 // ---------- Bahan ----------
@@ -109,6 +110,10 @@ export const PRICING = {
   poleBase: 2_400_000,
   totemPerM: 2_350_000,
   // Biaya pemasangan per lokasi
+  // Neon flex: per meter selang + papan acrylic per m²
+  neonFlexPerM: 165_000,
+  neonBoardPerM2: 950_000,
+  neonMin: 450_000,
   install: { rooftop: 4_500_000, totem: 2_000_000, cafe: 1_500_000, pole: 1_750_000, wall: 650_000 },
 };
 
@@ -152,6 +157,7 @@ export const PRICE_RULES_DEFAULT = {
   base: {
     letters_lit: 0,     // huruf timbul menyala: × tinggi huruf (cm) × jumlah huruf
     letters_unlit: 0,   // huruf timbul non-lampu: × tinggi huruf (cm) × jumlah huruf
+    neon_flex: 0,       // neon flex: × tinggi huruf (cm) × jumlah huruf
     box_round: 0,       // neon box bulat: × diameter (cm) × pengali sisi
     box_rect: 0,        // neon box kotak/persegi: × sisi terpanjang (cm) × pengali sisi
   },
@@ -189,6 +195,7 @@ export function defaultItem(id = 1) {
       side: { mat: 'acp', color: '#15181e' },
       backPanel: { on: false, color: '#15181e', padding: 20 },
       sides: 1,          // neon box: 1 sisi / 2 sisi (depan-belakang)
+      board: 'clear',    // neon flex: papan acrylic (clear/black/white/none)
       logo: null,
     },
     led: { on: true, color: '#eef4ff', brightness: 75, mode: 'front', effect: 'static', density: 'standard', xray: false },

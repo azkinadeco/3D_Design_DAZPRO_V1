@@ -43,5 +43,6 @@ export const ICONS = {
   box_square: big('<rect x="20" y="4" width="24" height="28" rx="2"/><path d="M26 18h12" stroke="#2f5bff"/>'),
   box_round: big('<circle cx="32" cy="18" r="14"/><path d="M25 18h14" stroke="#2f5bff"/>'),
   letters_lit: big('<path d="M10 28l6-20 6 20M12 22h8M28 8v20h8M42 8h10M47 8v20" stroke="#2f5bff"/><path d="M8 32h48" opacity=".4"/>'),
+  neon_flex: big('<rect x="6" y="3" width="52" height="30" rx="2" opacity=".45"/><path d="M14 24c0-8 3-13 6-13s4 4 2 8-6 5-6 5M28 24V12l8 12V12M42 18a4 4 0 108 0 4 4 0 10-8 0" stroke="#ff3fb4" stroke-width="2.2"/>'),
   letters_unlit: big('<path d="M10 28l6-20 6 20M12 22h8M28 8v20h8M42 8h10M47 8v20"/>'),
 };

@@ -34,7 +34,11 @@ export function computeItemLines(state, m) {
   const lines = [];
   const lit = type.lit && L.on;
 
-  if (type.group === 'box') {
+  if (type.group === 'neon') {
+    const len = m.neonLength || 0;
+    const v = Math.max(P.neonMin, len * P.neonFlexPerM + (S.board === 'none' ? 0 : m.area * P.neonBoardPerM2));
+    lines.push({ label: `Neon Flex ${m.letters} huruf × ${S.letterHeight} cm`, detail: `panjang selang ±${m2(len)} m${S.board === 'none' ? '' : ` · papan acrylic ${m2(m.area)} m²`}`, amount: v });
+  } else if (type.group === 'box') {
     const ff = P.frontFactor[S.front.mat] ?? 1;
     const sf = P.sideFactor[S.side.mat] ?? 1;
     let v = m.area * P.boxPerM2 * (0.6 * ff + 0.4 * sf);
@@ -107,7 +111,7 @@ function itemLinesV2(R, view, m) {
   const S = view.sign, L = view.led;
   const type = SIGN_TYPES.find((t) => t.id === S.type);
   const lines = [];
-  const mf = R.matFactor[S.front.mat] ?? 1;
+  const mf = type.group === 'neon' ? 1 : R.matFactor[S.front.mat] ?? 1;
   if (type.group === 'box') {
     const round = S.type === 'box_round';
     const sides = S.sides === 2 ? 2 : 1;
@@ -120,7 +124,7 @@ function itemLinesV2(R, view, m) {
       amount: base * size * k * mf,
     });
   } else {
-    const base = type.lit ? R.base.letters_lit : R.base.letters_unlit;
+    const base = type.group === 'neon' ? R.base.neon_flex : type.lit ? R.base.letters_lit : R.base.letters_unlit;
     const k = R.mult.letters;
     lines.push({
       label: `${type.name} ${m.letters} huruf × ${cm(S.letterHeight)} cm`,
@@ -130,7 +134,7 @@ function itemLinesV2(R, view, m) {
   }
   // ---- biaya additional ----
   const A = R.additional;
-  if (type.group !== 'box' && S.backPanel.on) lines.push({ label: 'Additional · panel latar ACP', detail: `${m2(m.area)} m²`, amount: m.area * A.backPanelPerM2, add: 'backPanel' });
+  if (type.group === 'letters' && S.backPanel.on) lines.push({ label: 'Additional · panel latar ACP', detail: `${m2(m.area)} m²`, amount: m.area * A.backPanelPerM2, add: 'backPanel' });
   if (type.lit && L.on && L.effect !== 'static') lines.push({ label: `Additional · controller efek ${(LED_EFFECTS.find((e) => e.id === L.effect) || {}).name}`, detail: '', amount: A.ledEffect, add: 'ledEffect' });
   if ((view.placement === 'rooftop' || view.placement === 'cafe') && view.construction.on && m.consArea) {
     lines.push({ label: 'Additional · kerangka konstruksi besi', detail: `tinggi kaki ${view.construction.height} cm · bidang ${m2(m.consArea)} m²`, amount: A.constructionBase + m.consArea * A.constructionPerM2, add: 'construction' });

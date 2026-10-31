@@ -53,6 +53,15 @@ export const TEMPLATES = [
     })]),
   },
   {
+    id: 'neon', name: 'Neon flex dinding', desc: 'Tulisan neon pink di papan acrylic bening',
+    preview: { bg: '#1a1420', fg: '#ffd6f0', glow: '#ff3fb4', font: 'chorus', text: 'good vibes' },
+    state: () => make({ placement: 'wall', time: 'night', wall: { image: null, width: 6, height: 3.5, color: '#3b3f46', lockRatio: true } }, [item({
+      sign: { type: 'neon_flex', text: 'good vibes', font: 'chorus', letterHeight: 35, spacing: 2, board: 'clear' },
+      led: { color: '#ff3fb4', brightness: 85, effect: 'static' },
+      pos: { x: 0, y: 1.6, z: 0, rot: 0 },
+    })]),
+  },
+  {
     id: 'bar', name: 'Night bar', desc: 'Huruf neon pink dengan efek napas',
     preview: { bg: '#12051a', fg: '#ffd1f0', glow: '#ff3fb4', font: 'bigshoulders', text: 'NIGHT BAR' },
     state: () => make({ placement: 'cafe', time: 'night' }, [item({

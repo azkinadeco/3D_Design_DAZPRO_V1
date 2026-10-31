@@ -12,7 +12,7 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Lokasi** | Atas Gedung (jumlah lantai), Totem/Pylon (tinggi & warna), Atas Kafe, Tiang Pinggir Jalan (tinggi & warna), Tempel Dinding dengan **foto tembok custom** (lebar/tinggi tembok, kunci rasio foto) |
 | **Latar** | Langit mengikuti waktu, studio abu, warna solid, atau **upload foto** (foto 360° 2:1 jadi panorama). Lingkungan kota bisa disembunyikan |
 | **Posisi** | **Seret signage langsung di 3D**, atau slider geser/maju-mundur/rotasi |
-| **Model** | Neon Box Kotak, Neon Box Persegi, Neon Box Bulat, Huruf Timbul Menyala, Huruf Timbul Non-Lampu |
+| **Model** | Neon Box Kotak, Neon Box Persegi, Neon Box Bulat (1 / 2 sisi), Huruf Timbul Menyala, Huruf Timbul Non-Lampu, **Neon Flex** (selang LED neon di papan acrylic bening/hitam/putih) |
 | **Teks** | Multi-baris, 15 font (modern, kondensasi, display, serif, elegan, script), jarak huruf, warna & skala teks di neon box, logo upload |
 | **Ukuran** | Neon box: lebar/tinggi/tebal (cm). Huruf: tinggi kapital & tebal return (cm). Ukuran jadi tampil live |
 | **Bahan** | Acrylic, Stainless, Stainless Gold, ACP, Mirror — **terpisah untuk depan (muka) dan sisi samping**, warna bebas. Panel latar ACP untuk huruf |
@@ -27,7 +27,7 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Penawaran PDF** | Dokumen A4: nomor & tanggal penawaran, data pelanggan, visual 3D, tampak depan tiap signage, tabel spesifikasi, rincian biaya, ketentuan → Simpan sebagai PDF dari dialog cetak |
 | **Ajukan** | Rincian estimasi (dikelompokkan per signage), simpan PNG, kirim ringkasan + estimasi ke WhatsApp |
 | **Proyek** | Simpan di perangkat, buka simpanan, export/import `.json`, autosave |
-| **Template** | 6 desain siap pakai (kafe, butik, klinik, gedung kantor, barbershop, night bar) — sekali klik lalu ubah teksnya |
+| **Template** | 7 desain siap pakai (kafe, butik, klinik, gedung kantor, barbershop, neon flex dinding, night bar) — sekali klik lalu ubah teksnya |
 | **Jarak baca** | Perkiraan jarak nyaman & maksimal tulisan terbaca, dari tinggi huruf |
 | **Tampilan** | Panel edit bisa disembunyikan (tombol / tombol `P`), layar penuh (juga di iPhone), putar otomatis untuk presentasi |
 | **Rumus biaya** | Rumus baru diatur di admin → *Pengaturan harga*: huruf timbul (dasar × tinggi × jumlah huruf), neon box bulat (dasar × diameter × 2/3), neon box kotak (dasar × sisi terpanjang × 2/3), pemasangan reguler, transport per area, pajak, biaya additional. Selama belum disimpan & diaktifkan, situs memakai `PRICING` lama |
@@ -94,5 +94,5 @@ Simpanan V1 (satu signage) otomatis dimigrasikan ke format multi-signage.
 
 ## Rencana berikutnya
 
-- Model tambahan (neon flex, papan nama 2 sisi, billboard).
+- Model tambahan (billboard, papan nama 2 sisi).
 - Notifikasi email/WhatsApp otomatis ke admin saat ada pengajuan baru.

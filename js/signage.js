@@ -205,6 +205,8 @@ export function buildSign(state, font, assets = {}) {
     return out;
   }
 
+  if (S.type === 'neon_flex') return buildNeon(S, L, font, out, b, ledColor);
+
   // ================= HURUF TIMBUL =================
   const cap = Math.max(0.05, S.letterHeight / 100);
   const depth = Math.max(0.01, S.letterDepth / 100);
@@ -331,6 +333,113 @@ export function buildSign(state, font, assets = {}) {
   out.area = W * H;
   out.size = { w: W, h: H, d: zL + depth };
   out.textWidth = txt.width; out.textHeight = txt.height;
+  return out;
+}
+
+// ================= NEON FLEX =================
+// Selang LED neon mengikuti garis tepi huruf, dipasang di papan acrylic.
+export const NEON_BOARDS = [
+  { id: 'clear', name: 'Acrylic bening' },
+  { id: 'black', name: 'Acrylic hitam' },
+  { id: 'white', name: 'Acrylic putih' },
+  { id: 'none', name: 'Tanpa papan' },
+];
+function buildNeon(S, L, font, out, b, ledColor) {
+  const { group, glow } = out;
+  const lit = L.on;
+  const cap = Math.max(0.05, S.letterHeight / 100);
+  const txt = textShapes(font, S.text || ' ', { capHeight: cap, spacing: S.spacing });
+  const r = THREE.MathUtils.clamp(cap * 0.03, 0.004, 0.011); // radius selang 8–22 mm
+  const board = S.board || 'clear';
+  const pad = Math.max(0.05, cap * 0.28);
+  const boardT = board === 'none' ? 0 : 0.008;
+  const W = Math.max(txt.width, 0.05) + pad * 2;
+  const H = Math.max(txt.height, 0.05) + pad * 2;
+  const zT = boardT + r + 0.004;
+
+  // --- papan ---
+  if (board !== 'none') {
+    const mat = board === 'clear'
+      ? new THREE.MeshStandardMaterial({ color: '#dfe9ef', roughness: 0.08, metalness: 0, transparent: true, opacity: 0.28, depthWrite: false })
+      : new THREE.MeshStandardMaterial({ color: board === 'black' ? '#121316' : '#f4f4f2', roughness: 0.25 });
+    const geo = new THREE.ExtrudeGeometry(roundedRect(W, H, Math.min(0.03, W * 0.03)), { depth: boardT, bevelEnabled: false });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.receiveShadow = board !== 'clear';
+    group.add(mesh);
+  }
+
+  // --- selang neon ---
+  const tubeMat = new THREE.MeshStandardMaterial({
+    color: lit ? ledColor.clone().lerp(new THREE.Color('#ffffff'), 0.55) : '#e9e6e1',
+    emissive: ledColor.clone(), emissiveIntensity: lit ? 1 : 0, roughness: 0.4,
+  });
+  tubeMat.userData.baseEmissive = ledColor.clone();
+  if (lit) glow.push({ mat: tubeMat, base: 0.5 + 1.9 * b });
+  let length = 0;
+  const loops = [];
+  for (const p of txt.polys) { loops.push(p.outer); for (const h of p.holes) loops.push(h); }
+  for (const pts of loops) {
+    if (pts.length < 3) continue;
+    const v = pts.map((q) => new THREE.Vector3(q.x, q.y + pad, zT));
+    if (v[0].distanceTo(v[v.length - 1]) < 1e-5) v.pop();
+    const curve = new THREE.CatmullRomCurve3(v, true, 'centripetal');
+    const len = curve.getLength();
+    length += len;
+    const seg = Math.min(600, Math.max(24, Math.round(len / (r * 1.6))));
+    const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, seg, r, 8, true), tubeMat);
+    mesh.castShadow = true;
+    group.add(mesh);
+  }
+
+  // --- pendar cahaya di papan / dinding ---
+  if (lit && txt.polys.length) {
+    const m = cap * 0.5;
+    const bw = txt.width + m * 2, bh = txt.height + m * 2;
+    const res = 1000;
+    const c = document.createElement('canvas');
+    c.width = Math.max(8, bw >= bh ? res : Math.round(res * bw / bh));
+    c.height = Math.max(8, bw >= bh ? Math.round(res * bh / bw) : res);
+    const g = c.getContext('2d');
+    const sx = c.width / bw;
+    const toPx = (x, y) => [(x + bw / 2) * sx, c.height - (y + m) * sx];
+    g.strokeStyle = '#fff'; g.lineJoin = 'round';
+    const stroke = (lw, blur, a) => {
+      g.globalAlpha = a; g.filter = `blur(${blur}px)`; g.lineWidth = lw;
+      for (const pts of loops) {
+        g.beginPath();
+        pts.forEach((q, i) => { const [x, y] = toPx(q.x, q.y); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+        g.closePath(); g.stroke();
+      }
+    };
+    stroke(r * 10 * sx, Math.max(4, cap * 0.22 * sx), 0.8);
+    stroke(r * 4 * sx, Math.max(2, cap * 0.06 * sx), 0.9);
+    g.filter = 'none'; g.globalAlpha = 1;
+    const tex = new THREE.CanvasTexture(c);
+    const hm = new THREE.MeshBasicMaterial({ map: tex, color: ledColor, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), hm);
+    plane.position.set(0, pad + txt.height / 2, boardT + 0.002);
+    plane.userData.noPick = true;
+    plane.renderOrder = 2;
+    group.add(plane);
+    out.halo = { mat: hm, base: 0.45 + 0.9 * b };
+
+    const light = new THREE.PointLight(ledColor, 1, Math.max(4, W * 2), 2);
+    light.position.set(0, H / 2, Math.max(1.2, W * 0.4));
+    group.add(light);
+    out.light = light;
+    out.lightBase = (0.5 + W * cap * 1.2) * b;
+  }
+
+  const pick = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ visible: false }));
+  pick.position.set(0, H / 2, zT + r);
+  group.add(pick);
+
+  out.letters = Array.from(S.text).filter((ch) => ch.trim()).length;
+  out.neonLength = length;
+  out.area = W * H;
+  out.size = { w: W, h: H, d: zT + r };
+  out.textWidth = txt.width; out.textHeight = txt.height;
+  out.effectiveMode = lit ? 'neon' : null;
   return out;
 }
 

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { Engine } from './engine.js';
 import { buildCity, buildHero, placementInfo, buildConstruction, buildTotem, buildPole } from './environment.js';
-import { buildSign } from './signage.js';
+import { buildSign, NEON_BOARDS } from './signage.js';
 import { buildDims } from './dims.js';
 import { loadFont, loadFontIndex, drawTextFit } from './fonts.js';
 import { MAT_DEFAULT_COLOR } from './materials.js';
@@ -294,7 +294,7 @@ function metricsOf(it) {
   const rt = runtime.get(it.id) || {};
   const r = rt.res, m = rt.m || {};
   return {
-    area: r ? r.area : 0, ledCount: r ? r.ledCount : 0, letters: r ? r.letters : 0, size: r ? r.size : null,
+    area: r ? r.area : 0, ledCount: r ? r.ledCount : 0, letters: r ? r.letters : 0, size: r ? r.size : null, neonLength: r ? r.neonLength || 0 : 0,
     consArea: m.consArea || 0, poleH: m.poleH || 0, totemH: m.totemH || 0,
   };
 }
@@ -447,10 +447,13 @@ function panelModel() {
   let dims;
   if (t.group === 'box') {
     dims = `<div class="row3">${numIn('sign.width', S.type === 'box_round' ? 'Diameter (cm)' : 'Lebar (cm)', 30, 1200)}${S.type === 'box_rect' ? numIn('sign.height', 'Tinggi (cm)', 20, 600) : '<span></span>'}${numIn('sign.depth', 'Tebal (cm)', 8, 60)}</div>`;
+  } else if (t.group === 'neon') {
+    dims = range('sign.letterHeight', 'Tinggi huruf kapital', 8, 120, 1, ' cm')
+      + `<div class="group"><div class="lbl">Papan</div><div class="seg-ctl">${NEON_BOARDS.map((x) => chip('sign.board', x.id, x.name, S.board || 'clear')).join('')}</div></div>`;
   } else {
     dims = range('sign.letterHeight', 'Tinggi huruf kapital', 10, 300, 1, ' cm') + range('sign.letterDepth', 'Tebal huruf (return)', 2, 30, 0.5, ' cm');
   }
-  return `<h2 class="sec-title">Model signage</h2><p class="sec-sub">Neon box atau huruf timbul — menyala maupun tidak.</p>
+  return `<h2 class="sec-title">Model signage</h2><p class="sec-sub">Neon box, huruf timbul, atau neon flex.</p>
     <div class="group"><div class="cards">${SIGN_TYPES.map((x) => `<button class="card ${S.type === x.id ? 'active' : ''}" data-set="sign.type" data-value="${x.id}"><div class="ic">${ICONS[x.id]}</div><b>${x.name}</b><span>${x.desc}</span></button>`).join('')}</div></div>
     ${t.group === 'box' ? `<div class="group"><div class="lbl">Jumlah sisi</div><div class="seg-ctl">${chip('sign.sides', 1, '1 sisi', S.sides === 2 ? 2 : 1)}${chip('sign.sides', 2, '2 sisi (depan–belakang)', S.sides === 2 ? 2 : 1)}</div><p class="hint">2 sisi: tulisan terlihat dari depan dan belakang — cocok untuk tiang & papan yang tegak lurus jalan.</p></div>` : ''}
     <div class="group"><div class="lbl">Ukuran<span class="val" id="model-size"></span></div>${dims}<div id="read-box">${readBlock(activeItem())}</div></div>
@@ -470,6 +473,7 @@ function panelTeks() {
     ${isBox ? `<div class="group"><div class="lbl">Warna teks pada muka</div>${swatches('sign.textColor')}</div>
       ${range('sign.textScale', 'Ukuran teks pada muka', 25, 100, 1, '%')}
       <div class="group"><div class="lbl">Logo (opsional)</div>${upload('sign.logo', 'Logo usaha', !!S.logo, S.logo)}<p class="hint">PNG transparan paling bagus. Logo diletakkan di kiri teks.</p></div>`
+    : S.type === 'neon_flex' ? `<p class="hint">Warna neon diatur di tab <b>Lampu</b>. Font script / tulisan tangan paling cocok untuk neon flex.</p>`
     : `<p class="hint">Warna huruf diatur di tab <b>Bahan</b> (muka depan & samping).</p>`}`;
 }
 
@@ -482,6 +486,12 @@ function matBlock(path, title, sub) {
 
 function panelBahan() {
   const S = state.sign;
+  if (S.type === 'neon_flex') {
+    return `<h2 class="sec-title">Bahan & warna</h2><p class="sec-sub">Neon flex memakai selang LED silikon di atas papan acrylic.</p>
+      <div class="group"><div class="lbl">Papan</div><div class="seg-ctl">${NEON_BOARDS.map((x) => chip('sign.board', x.id, x.name, S.board || 'clear')).join('')}</div>
+      <p class="hint">Papan acrylic dipotong mengikuti kotak tulisan. Acrylic bening paling populer untuk dinding kafe & toko.</p></div>
+      <div class="note">Warna neon diatur di tab <b>Lampu</b>.</div>`;
+  }
   const isBox = S.type.startsWith('box_');
   return `<h2 class="sec-title">Bahan & warna</h2><p class="sec-sub">Atur bahan bagian depan (muka) dan sisi samping secara terpisah.</p>
     ${matBlock('sign.front', 'Depan (muka)', isBox ? 'panel muka neon box' : 'permukaan huruf')}
@@ -500,6 +510,14 @@ function panelLampu() {
       <button class="btn btn-primary btn-sm" style="margin-top:12px" data-set="sign.type" data-value="letters_lit">Ganti ke Huruf Timbul Menyala</button>`;
   }
   const isBox = t.group === 'box';
+  if (t.group === 'neon') {
+    return `<h2 class="sec-title">Lampu neon</h2><p class="sec-sub">Warna dan efek selang LED neon flex.</p>
+      <div class="group">${toggle('led.on', 'Neon menyala', 'Matikan untuk melihat tampilan saat lampu padam')}</div>
+      <div class="group"><div class="lbl">Warna neon<span class="val">${esc((LED_COLORS.find((c) => c.hex === L.color) || { name: 'Custom ' + L.color }).name)}</span></div>${swatches('led.color', LED_COLORS.map((c) => c.hex))}</div>
+      ${range('led.brightness', 'Kecerahan', 5, 100, 1, '%')}
+      <div class="group"><div class="lbl">Efek</div><div class="seg-ctl">${LED_EFFECTS.map((e) => chip('led.effect', e.id, e.name, L.effect)).join('')}</div></div>
+      <div class="group"><div class="lbl">Waktu tampilan</div><div class="seg-ctl">${TIMES.map((x) => chip('time', x.id, x.name, state.time)).join('')}</div></div>`;
+  }
   const modes = isBox ? LED_MODES.filter((m) => m.id === 'front' || m.id === 'side') : LED_MODES;
   const curMode = modes.find((m) => m.id === L.mode) ? L.mode : modes[0].id;
   return `<h2 class="sec-title">Lampu LED</h2><p class="sec-sub">Atur LED di dalam signage dan pencahayaan tulisan.</p>
@@ -615,6 +633,11 @@ function change(path, value, { rerender = false } = {}) {
     if (value === 'letters_unlit' && prev === 'letters_lit') Object.assign(state.sign, structuredClone(UNLIT_PRESET));
     if (value === 'letters_lit' && prev === 'letters_unlit') Object.assign(state.sign, structuredClone(LETTER_PRESET));
     if (g1 === 'box' && !['front', 'side'].includes(state.led.mode)) state.led.mode = 'front';
+    if (value === 'neon_flex') {
+      if (state.sign.letterHeight > 60) state.sign.letterHeight = 30;
+      if (state.led.color === '#eef4ff') state.led.color = '#ff3fb4';
+      state.led.on = true;
+    }
     invalidate({ signs: 'active' });
   } else {
     setPath(state, path, value);
@@ -1024,6 +1047,18 @@ function itemSpecs(it) {
   const size = rt && rt.res ? rt.res.size : { w: 0, h: 0, d: 0 };
   const type = SIGN_TYPES.find((t) => t.id === S.type);
   const isBox = type.group === 'box';
+  if (type.group === 'neon') {
+    return [
+      ['Model', type.name],
+      ['Teks', S.text.replace(/\n/g, ' / ') || '—'],
+      ['Font', (fontIndex.find((f) => f.id === S.font) || {}).name || S.font],
+      ['Ukuran jadi', `${fmt(size.w)} × ${fmt(size.h)} m`],
+      ['Tinggi huruf', `${S.letterHeight} cm`],
+      ['Panjang selang neon', `±${fmt(rt?.res?.neonLength || 0)} m`],
+      ['Papan', (NEON_BOARDS.find((x) => x.id === (S.board || 'clear')) || {}).name],
+      ['Warna neon', L.on ? `${LED_COLORS.find((c) => c.hex === L.color)?.name || L.color} · ${LED_EFFECTS.find((x) => x.id === L.effect)?.name}` : 'Mati'],
+    ];
+  }
   const rows = [
     ['Model', type.name],
     ['Teks', S.text.replace(/\n/g, ' / ') || '—'],

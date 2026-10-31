@@ -14,6 +14,7 @@ const SECTIONS = [
   ['Harga dasar rumus', 'Harga dasar dikalikan ukuran sesuai rumus di bawah.', [
     ['base.letters_lit', 'Huruf timbul menyala', 'harga dasar × tinggi huruf (cm) × jumlah huruf', 'rp'],
     ['base.letters_unlit', 'Huruf timbul non-lampu', 'harga dasar × tinggi huruf (cm) × jumlah huruf', 'rp'],
+    ['base.neon_flex', 'Neon flex', 'harga dasar × tinggi huruf (cm) × jumlah huruf', 'rp'],
     ['base.box_round', 'Neon box bulat', 'harga dasar × diameter (cm) × pengali sisi', 'rp'],
     ['base.box_rect', 'Neon box kotak / persegi panjang', 'harga dasar × sisi terpanjang (cm) × pengali sisi', 'rp'],
   ]],
@@ -90,7 +91,7 @@ function render(box, meta = '') {
       <div>${SECTIONS.map(([t, d, fs]) => `<section class="pr-sec"><h3>${esc(t)}</h3><p class="muted small">${esc(d)}</p>${fs.map(field).join('')}</section>`).join('')}</div>
       <aside class="pr-side"><section class="pr-sec"><h3>Contoh hasil</h3><p class="muted small">Termasuk pemasangan, transport, dan pajak ${esc(r0(rules.taxPct))}%.</p><div id="pr-ex">${examples()}</div></section>
         <section class="pr-sec"><h3>Rumus</h3><ul class="formula">
-          <li><b>Huruf timbul</b> = dasar × tinggi huruf (cm) × jumlah huruf</li>
+          <li><b>Huruf timbul / neon flex</b> = dasar × tinggi huruf (cm) × jumlah huruf</li>
           <li><b>Neon box bulat</b> = dasar × diameter (cm) × ${esc(rules.mult.box1)} (1 sisi) / ${esc(rules.mult.box2)} (2 sisi)</li>
           <li><b>Neon box kotak</b> = dasar × sisi terpanjang (cm) × ${esc(rules.mult.box1)} / ${esc(rules.mult.box2)}</li>
           <li><b>Total</b> = signage + pemasangan + transport + additional + pajak ${esc(r0(rules.taxPct))}%</li></ul></section></aside>
