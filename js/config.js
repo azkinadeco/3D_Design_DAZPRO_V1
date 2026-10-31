@@ -205,6 +205,7 @@ export function defaultState() {
     showDims: false,
     install: 'auto',   // jenis pemasangan (rumus biaya baru)
     area: 'malang',    // area pengiriman / transport
+    skipAdd: [],       // biaya additional yang tidak dipilih pelanggan ('<itemId>:<jenis>')
     bg: { mode: 'sky', color: '#dfe4ea', image: null },
     wall: { image: null, width: 9, height: 5, color: '#d9d4cc', lockRatio: true },
     env: { floors: 4, poleHeight: 5.5, totemHeight: 6, structColor: '#2a2f37', showCity: true },

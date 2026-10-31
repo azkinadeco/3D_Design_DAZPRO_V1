@@ -309,7 +309,7 @@ function describe(it) {
 
 function updateSummary() {
   if (!state.items.every((it) => runtime.get(it.id)?.res)) return;
-  pricing = computePrice(state.placement, state.items.map((it, i) => ({ name: itemName(it, i), view: viewOf(it), metrics: metricsOf(it) })), { floors: state.env.floors, install: state.install, area: state.area });
+  pricing = computePrice(state.placement, state.items.map((it, i) => ({ id: it.id, name: itemName(it, i), view: viewOf(it), metrics: metricsOf(it) })), { floors: state.env.floors, install: state.install, area: state.area, skip: state.skipAdd || [] });
   $('#sum-price').textContent = formatRp(pricing.total);
   const pl = PLACEMENTS.find((p) => p.id === state.placement);
   const n = state.items.length;
@@ -923,7 +923,10 @@ window.addEventListener('keydown', (e) => {
 // Seluruh halaman dibuat fullscreen (agar jendela pengajuan dll. tetap tampil),
 // lalu studio mengisi layar. Jika Fullscreen API tidak ada (iPhone), cukup mode CSS.
 const studio = $('#studio');
+let panelBeforeFull = null;
 function setFull(on) {
+  if (on && panelBeforeFull === null) { panelBeforeFull = !studio.classList.contains('panel-off'); setPanel(false, false); }
+  if (!on && panelBeforeFull !== null) { setPanel(panelBeforeFull, false); panelBeforeFull = null; }
   studio.classList.toggle('is-full', on);
   document.body.classList.toggle('full-lock', on);
   $('#btn-full').innerHTML = on ? ICONS.shrink : ICONS.expand;
@@ -987,14 +990,31 @@ function linesTable() {
   const rows = pricing.lines.map((l) => {
     let head = '';
     if (l.group && l.group !== group) { group = l.group; head = `<tr class="grp"><td colspan="2">${esc(l.group)}</td></tr>`; }
-    return `${head}<tr><td>${esc(l.label)}${l.detail ? `<small>${esc(l.detail)}</small>` : ''}</td><td>${formatRp(l.amount)}</td></tr>`;
+    const label = l.key
+      ? `<label class="add-opt"><input type="checkbox" data-add="${esc(l.key)}" ${l.skipped ? '' : 'checked'} /><span>${esc(l.label)}${l.detail ? `<small>${esc(l.detail)}</small>` : ''}${l.skipped ? '<small class="skip">Tidak dipilih — disiapkan sendiri</small>' : ''}</span></label>`
+      : `${esc(l.label)}${l.detail ? `<small>${esc(l.detail)}</small>` : ''}`;
+    const amt = l.skipped ? `<s>${formatRp(l.full)}</s>` : formatRp(l.amount);
+    return `${head}<tr class="${l.skipped ? 'off' : ''}"><td>${label}</td><td>${amt}</td></tr>`;
   }).join('');
-  return `<table class="lines">${rows}<tr class="total"><td>Total estimasi</td><td>${formatRp(pricing.total)}</td></tr></table>
-    <p class="muted small">Estimasi kasar berdasarkan ukuran, bahan, LED, dan lokasi. Harga final dikonfirmasi setelah survei lokasi.</p>
-    <div class="drawer-actions"><button class="btn btn-ghost btn-sm" data-open-quote>Cetak penawaran (PDF)</button></div>`;
+  const hasAdd = pricing.lines.some((l) => l.key);
+  return `${hasAdd ? '<p class="muted small" style="margin:0 0 6px">Centang biaya <b>additional</b> yang ingin disertakan. Hapus centang jika Anda menyiapkannya sendiri.</p>' : ''}
+    <table class="lines">${rows}<tr class="total"><td>Total estimasi</td><td>${formatRp(pricing.total)}</td></tr></table>
+    <p class="muted small">Estimasi kasar berdasarkan ukuran, bahan, dan lokasi. Harga final dikonfirmasi setelah survei lokasi.</p>
+    <div class="drawer-actions"><button class="btn btn-ghost btn-sm" data-open-quote>Cetak penawaran (PDF)</button><button class="btn btn-primary btn-sm" data-open-submit>Ajukan desain</button></div>`;
 }
+$('#drawer-body').addEventListener('change', (e) => {
+  const cb = e.target.closest('[data-add]');
+  if (!cb) return;
+  const key = cb.dataset.add;
+  const set = new Set(state.skipAdd || []);
+  if (cb.checked) set.delete(key); else set.add(key);
+  state.skipAdd = [...set];
+  updateSummary();
+  $('#drawer-body').innerHTML = linesTable();
+  autosave(); commit();
+});
 $('#sum-total').addEventListener('click', () => { $('#drawer-body').innerHTML = linesTable(); openModal('#drawer'); });
-$('#drawer-body').addEventListener('click', (e) => { if (e.target.closest('[data-open-quote]')) { $('#drawer').hidden = true; openSubmit(); } });
+$('#drawer-body').addEventListener('click', (e) => { if (e.target.closest('[data-open-quote], [data-open-submit]')) { $('#drawer').hidden = true; openSubmit(); } });
 
 // ---------- spesifikasi teks ----------
 const matName = (id) => (MATERIALS.find((m) => m.id === id) || {}).name;
@@ -1053,7 +1073,7 @@ $('#submit-form').addEventListener('submit', (e) => {
     blocks.join('\n\n'),
     '',
     'Rincian estimasi:',
-    ...pricing.lines.map((l) => `- ${l.group ? l.group + ' · ' : ''}${l.label}: ${formatRp(l.amount)}`),
+    ...pricing.lines.map((l) => `- ${l.group ? l.group + ' · ' : ''}${l.label}: ${l.skipped ? 'tidak dipilih' : formatRp(l.amount)}`),
     `Total estimasi: ${formatRp(pricing.total)}`,
     fd.get('note') ? `\nCatatan: ${fd.get('note')}` : null,
     '\n(Gambar desain 3D saya lampirkan.)',
@@ -1093,7 +1113,7 @@ async function recordSubmission(fd, pl) {
       total: Math.round(pricing.total),
       count: state.items.length,
       items: state.items.map((it, i) => ({ name: itemName(it, i), specs: itemSpecs(it).map(([k, v]) => ({ k, v: String(v) })) })),
-      lines: pricing.lines.map((l) => ({ group: l.group || '', label: l.label, amount: Math.round(l.amount) })),
+      lines: pricing.lines.map((l) => ({ group: l.group || '', label: l.skipped ? `${l.label} (tidak dipilih)` : l.label, amount: Math.round(l.amount) })),
       design,
       preview,
     });

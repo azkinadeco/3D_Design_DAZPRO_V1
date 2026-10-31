@@ -47,9 +47,9 @@ export function computeItemLines(state, m) {
     // faktor tebal: return > 10 cm sedikit lebih mahal
     const depthF = 1 + Math.max(0, S.letterDepth - 10) * 0.02;
     const each = Math.max(P.letterMin, h * per * depthF);
-    lines.push({ label: `${type.name} ${m.letters} huruf × ${h} cm`, detail: `muka ${matName(S.front.mat)}, samping ${matName(S.side.mat)}, tebal ${S.letterDepth} cm · ${formatRp(each)}/huruf`, amount: each * m.letters });
+    lines.push({ label: `${type.name} ${m.letters} huruf × ${h} cm`, detail: `muka ${matName(S.front.mat)}, samping ${matName(S.side.mat)}, tebal ${S.letterDepth} cm`, amount: each * m.letters });
     if (S.backPanel.on) {
-      lines.push({ label: 'Panel latar ACP', detail: `${m2(m.area)} m²`, amount: Math.max(350000, m.area * P.backPanelPerM2) });
+      lines.push({ label: 'Panel latar ACP', detail: `${m2(m.area)} m²`, amount: Math.max(350000, m.area * P.backPanelPerM2), add: 'backPanel' });
     }
   }
 
@@ -57,18 +57,18 @@ export function computeItemLines(state, m) {
     const psu = Math.ceil(m.ledCount / 100) * P.powerSupplyPer100;
     lines.push({ label: 'LED modul & power supply', detail: `${m.ledCount} modul · ${Math.ceil(m.ledCount / 100)} PSU`, amount: m.ledCount * P.ledModule + psu });
     if (L.effect !== 'static') {
-      lines.push({ label: `Controller efek ${(LED_EFFECTS.find((e) => e.id === L.effect) || {}).name}`, detail: '', amount: P.ledEffectController });
+      lines.push({ label: `Controller efek ${(LED_EFFECTS.find((e) => e.id === L.effect) || {}).name}`, detail: '', amount: P.ledEffectController, add: 'ledEffect' });
     }
   }
 
   if ((state.placement === 'rooftop' || state.placement === 'cafe') && state.construction.on && m.consArea) {
-    lines.push({ label: 'Konstruksi besi hollow', detail: `tinggi kaki ${state.construction.height} cm · bidang ${m2(m.consArea)} m²`, amount: P.constructionBase + m.consArea * P.constructionPerM2 });
+    lines.push({ label: 'Konstruksi besi hollow', detail: `tinggi kaki ${state.construction.height} cm · bidang ${m2(m.consArea)} m²`, amount: P.constructionBase + m.consArea * P.constructionPerM2, add: 'construction' });
   }
   if (state.placement === 'pole' && m.poleH) {
-    lines.push({ label: 'Tiang besi & pondasi', detail: `tinggi ${m2(m.poleH)} m`, amount: P.poleBase + m.poleH * P.polePerM });
+    lines.push({ label: 'Tiang besi & pondasi', detail: `tinggi ${m2(m.poleH)} m`, amount: P.poleBase + m.poleH * P.polePerM, add: 'pole' });
   }
   if (state.placement === 'totem' && m.totemH) {
-    lines.push({ label: 'Struktur totem ACP', detail: `tinggi ${m2(m.totemH)} m`, amount: m.totemH * P.totemPerM });
+    lines.push({ label: 'Struktur totem ACP', detail: `tinggi ${m2(m.totemH)} m`, amount: m.totemH * P.totemPerM, add: 'totem' });
   }
   return lines;
 }
@@ -83,7 +83,7 @@ export function computePrice(placement, list, ctx = {}) {
   const lines = [];
   const multi = list.length > 1;
   list.forEach((it) => {
-    for (const l of computeItemLines(it.view, it.metrics)) lines.push({ ...l, group: multi ? it.name : null });
+    for (const l of computeItemLines(it.view, it.metrics)) lines.push({ ...applySkip(l, it, ctx), group: multi ? it.name : null });
   });
   const pl = PLACEMENTS.find((p) => p.id === placement);
   const base = P.install[placement] || 0;
@@ -108,7 +108,6 @@ function itemLinesV2(R, view, m) {
   const type = SIGN_TYPES.find((t) => t.id === S.type);
   const lines = [];
   const mf = R.matFactor[S.front.mat] ?? 1;
-  const mfTxt = mf !== 1 ? ` · faktor ${matName(S.front.mat)} ×${mf}` : '';
   if (type.group === 'box') {
     const round = S.type === 'box_round';
     const sides = S.sides === 2 ? 2 : 1;
@@ -117,7 +116,7 @@ function itemLinesV2(R, view, m) {
     const base = round ? R.base.box_round : R.base.box_rect;
     lines.push({
       label: `${type.name} ${sides} sisi`,
-      detail: `${rpx(base)} × ${cm(size)} cm (${round ? 'diameter' : 'sisi terpanjang'}) × ${k}${mfTxt}`,
+      detail: `${round ? 'Ø' : 'sisi terpanjang'} ${cm(size)} cm`,
       amount: base * size * k * mf,
     });
   } else {
@@ -125,20 +124,33 @@ function itemLinesV2(R, view, m) {
     const k = R.mult.letters;
     lines.push({
       label: `${type.name} ${m.letters} huruf × ${cm(S.letterHeight)} cm`,
-      detail: `${rpx(base)} × ${cm(S.letterHeight)} cm × ${m.letters} huruf${k !== 1 ? ' × ' + k : ''}${mfTxt}`,
+      detail: '',
       amount: base * S.letterHeight * m.letters * k * mf,
     });
   }
   // ---- biaya additional ----
   const A = R.additional;
-  if (type.group !== 'box' && S.backPanel.on) lines.push({ label: 'Additional · panel latar ACP', detail: `${m2(m.area)} m²`, amount: m.area * A.backPanelPerM2, add: true });
-  if (type.lit && L.on && L.effect !== 'static') lines.push({ label: `Additional · controller efek ${(LED_EFFECTS.find((e) => e.id === L.effect) || {}).name}`, detail: '', amount: A.ledEffect, add: true });
+  if (type.group !== 'box' && S.backPanel.on) lines.push({ label: 'Additional · panel latar ACP', detail: `${m2(m.area)} m²`, amount: m.area * A.backPanelPerM2, add: 'backPanel' });
+  if (type.lit && L.on && L.effect !== 'static') lines.push({ label: `Additional · controller efek ${(LED_EFFECTS.find((e) => e.id === L.effect) || {}).name}`, detail: '', amount: A.ledEffect, add: 'ledEffect' });
   if ((view.placement === 'rooftop' || view.placement === 'cafe') && view.construction.on && m.consArea) {
-    lines.push({ label: 'Additional · kerangka konstruksi besi', detail: `tinggi kaki ${view.construction.height} cm · bidang ${m2(m.consArea)} m²`, amount: A.constructionBase + m.consArea * A.constructionPerM2, add: true });
+    lines.push({ label: 'Additional · kerangka konstruksi besi', detail: `tinggi kaki ${view.construction.height} cm · bidang ${m2(m.consArea)} m²`, amount: A.constructionBase + m.consArea * A.constructionPerM2, add: 'construction' });
   }
-  if (view.placement === 'pole' && m.poleH) lines.push({ label: 'Additional · tiang besi & pondasi', detail: `tinggi ${m2(m.poleH)} m`, amount: A.poleBase + m.poleH * A.polePerM, add: true });
-  if (view.placement === 'totem' && m.totemH) lines.push({ label: 'Additional · struktur totem', detail: `tinggi ${m2(m.totemH)} m`, amount: m.totemH * A.totemPerM, add: true });
+  if (view.placement === 'pole' && m.poleH) lines.push({ label: 'Additional · tiang besi & pondasi', detail: `tinggi ${m2(m.poleH)} m`, amount: A.poleBase + m.poleH * A.polePerM, add: 'pole' });
+  if (view.placement === 'totem' && m.totemH) lines.push({ label: 'Additional · struktur totem', detail: `tinggi ${m2(m.totemH)} m`, amount: m.totemH * A.totemPerM, add: 'totem' });
   return lines;
+}
+
+/**
+ * Kelebihan ukuran indoor yang ditagih (meter):
+ * sisa pecahan > 0,5 m dibulatkan ke 1 meter penuh,
+ * sisa ≤ 0,5 m dihitung per 0,1 m (dibulatkan ke atas).
+ */
+export function indoorExtra(over) {
+  if (!(over > 1e-6)) return 0;
+  const whole = Math.floor(over + 1e-9);
+  const frac = over - whole;
+  if (frac > 0.5 + 1e-9) return whole + 1;
+  return whole + Math.ceil(frac * 10 - 1e-6) / 10;
 }
 
 /** Biaya pemasangan reguler satu signage. */
@@ -148,12 +160,20 @@ function installLine(R, ctx, m) {
   const name = (INSTALL_TYPES.find((x) => x.id === t) || {}).name;
   if (t === 'indoor') {
     const longest = m.size ? Math.max(m.size.w, m.size.h) : 0;
-    const extra = Math.max(0, Math.ceil(longest - I.indoorFreeM - 1e-6));
-    return { label: `Pemasangan · ${name}`, detail: extra ? `${rpx(I.indoor)} + ${extra} m × ${rpx(I.indoorPerM)} (lebih dari ${I.indoorFreeM} m)` : `ukuran ≤ ${I.indoorFreeM} m`, amount: I.indoor + extra * I.indoorPerM };
+    const extra = indoorExtra(longest - I.indoorFreeM);
+    const ex = extra.toLocaleString('id-ID', { maximumFractionDigits: 1 });
+    return { label: `Pemasangan · ${name}`, detail: extra ? `ukuran ${m2(longest)} m · tambahan ${ex} m × ${rpx(I.indoorPerM)}/m` : `ukuran ≤ ${I.indoorFreeM} m`, amount: I.indoor + extra * I.indoorPerM };
   }
   if (t === 'listplang') return { label: `Pemasangan · ${name}`, detail: '', amount: I.listplang };
   const floors = ctx.placement === 'rooftop' ? ctx.floors : I.cafeFloors;
   return { label: `Pemasangan · ${name}`, detail: `${floors} lantai × ${rpx(I.rooftopPerFloor)}`, amount: floors * I.rooftopPerFloor };
+}
+
+/** Tandai baris additional yang tidak dipilih pelanggan (tidak dihitung). */
+function applySkip(l, it, ctx) {
+  if (!l.add) return l;
+  const key = `${it.id}:${l.add}`;
+  return ctx.skip && ctx.skip.includes(key) ? { ...l, key, skipped: true, full: l.amount, amount: 0 } : { ...l, key };
 }
 
 function computePriceV2(ctx, list) {
@@ -162,7 +182,7 @@ function computePriceV2(ctx, list) {
   const multi = list.length > 1;
   list.forEach((it) => {
     const g = multi ? it.name : null;
-    for (const l of itemLinesV2(R, it.view, it.metrics)) lines.push({ ...l, group: g });
+    for (const l of itemLinesV2(R, it.view, it.metrics)) lines.push({ ...applySkip(l, it, ctx), group: g });
     lines.push({ ...installLine(R, ctx, it.metrics), group: g });
   });
   const g = multi ? 'Transport & pajak' : null;

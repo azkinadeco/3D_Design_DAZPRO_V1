@@ -78,6 +78,7 @@ button { cursor: pointer; }
 .studio .panel { transition: visibility 0s linear .3s; }
 .studio:not(.panel-off) .panel { transition-delay: 0s; }
 .studio.is-full { position: fixed; inset: 0; z-index: 90; margin: 0; max-width: none; max-height: none; height: 100dvh; border-radius: 0; border: 0; }
+.studio.is-full .summary { display: none; }
 body.full-lock { overflow: hidden; }
 @media (min-width: 1560px) { .studio { margin: 0 auto; } }
 
@@ -323,6 +324,11 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.35; font-wei
 .lines td { padding: 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 .lines td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 12px; }
 .lines td small { display: block; color: var(--muted); }
+.add-opt { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.add-opt input { margin-top: 3px; accent-color: var(--accent); width: 16px; height: 16px; flex: none; }
+.lines tr.off td { color: var(--muted); }
+.lines small.skip { color: var(--warn); }
+.lines s { color: var(--muted); }
 .lines tr.total td { border-bottom: 0; font-weight: 800; font-size: 16px; padding-top: 12px; }
 .form { display: flex; flex-direction: column; gap: 12px; }
 .form label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
@@ -391,6 +397,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.35; font-wei
   .studio.is-full { display: flex; flex-direction: column; overflow-y: auto; }
   .studio.is-full .viewport-wrap { flex: 1; min-height: 70dvh; }
   .studio.is-full.panel-off .viewport-wrap { min-height: 100%; }
+  .studio.is-full.panel-off .viewport { height: 100%; }
   .tpl-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 480px) {

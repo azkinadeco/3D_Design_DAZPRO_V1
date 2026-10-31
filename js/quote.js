@@ -7,7 +7,7 @@ export function buildQuote(d) {
   const rows = d.lines.map((l) => {
     let head = '';
     if (l.group && l.group !== group) { group = l.group; head = `<tr class="q-grp"><td colspan="2">${esc(l.group)}</td></tr>`; }
-    return `${head}<tr><td>${esc(l.label)}${l.detail ? `<small>${esc(l.detail)}</small>` : ''}</td><td>${d.formatRp(l.amount)}</td></tr>`;
+    return `${head}<tr><td>${esc(l.label)}${l.detail ? `<small>${esc(l.detail)}</small>` : ''}</td><td>${l.skipped ? 'Tidak dipilih' : d.formatRp(l.amount)}</td></tr>`;
   }).join('');
   const items = d.items.map((it, i) => `
     <section class="q-item">
