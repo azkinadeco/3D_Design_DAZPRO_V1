@@ -2,3 +2,4 @@
 node_modules/
 __pycache__/
 _test_*
+_preview.html
