@@ -12,6 +12,16 @@ export const BRAND = {
   area: 'Surabaya & seluruh Indonesia',
 };
 
+// ---------- Firebase (kunci web ini memang publik; keamanan diatur di firestore.rules) ----------
+export const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyBrwDyUw3VCqaKnS4e1K20cUnTiVPhw57o',
+  authDomain: 'dazpro-signage-f573f.firebaseapp.com',
+  projectId: 'dazpro-signage-f573f',
+  storageBucket: 'dazpro-signage-f573f.firebasestorage.app',
+  messagingSenderId: '560527354108',
+  appId: '1:560527354108:web:35bbc8019b58e6f4598f79',
+};
+
 // ---------- Lokasi penempatan ----------
 export const PLACEMENTS = [
   { id: 'rooftop', name: 'Atas Gedung', desc: 'Signage di atap gedung bertingkat', icon: 'building' },

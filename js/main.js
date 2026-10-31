@@ -9,6 +9,7 @@ import { MAT_DEFAULT_COLOR } from './materials.js';
 import { computePrice, formatRp } from './pricing.js';
 import { ICONS } from './icons.js';
 import { buildQuote } from './quote.js';
+import { saveSubmission } from './firebase.js';
 import {
   BRAND, PLACEMENTS, SIGN_TYPES, MATERIALS, SWATCHES, LED_COLORS, LED_MODES, LED_EFFECTS, LED_DENSITY, TIMES, BG_PRESETS,
   MAX_ITEMS, defaultState, defaultItem,
@@ -961,6 +962,7 @@ $('#submit-form').addEventListener('submit', (e) => {
     '',
     `Nama: ${fd.get('name')}`,
     fd.get('biz') ? `Usaha: ${fd.get('biz')}` : null,
+    fd.get('phone') ? `No. WhatsApp: ${fd.get('phone')}` : null,
     fd.get('city') ? `Lokasi: ${fd.get('city')}` : null,
     `Penempatan: ${pl.name}`,
     '',
@@ -976,7 +978,46 @@ $('#submit-form').addEventListener('submit', (e) => {
   window.open(`https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
   $('#submit-modal').hidden = true;
   toast('Membuka WhatsApp…');
+  recordSubmission(fd, pl); // simpan ke database (tidak menghalangi WhatsApp)
 });
+
+// kecilkan gambar jadi JPEG ringan agar muat di dokumen database
+function thumbJpeg(dataUrl, w = 720, q = 0.72) {
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = Math.round(w * im.height / im.width);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', q));
+    };
+    im.onerror = () => resolve('');
+    im.src = dataUrl;
+  });
+}
+async function recordSubmission(fd, pl) {
+  try {
+    const [preview, design] = await Promise.all([thumbJpeg(lastShot), encodeDesign()]);
+    await saveSubmission({
+      name: String(fd.get('name') || '').slice(0, 150),
+      biz: String(fd.get('biz') || '').slice(0, 150),
+      city: String(fd.get('city') || '').slice(0, 150),
+      phone: String(fd.get('phone') || '').slice(0, 40),
+      note: String(fd.get('note') || '').slice(0, 1500),
+      placement: pl.name,
+      time: TIMES.find((t) => t.id === state.time).name,
+      total: Math.round(pricing.total),
+      count: state.items.length,
+      items: state.items.map((it, i) => ({ name: itemName(it, i), specs: itemSpecs(it).map(([k, v]) => ({ k, v: String(v) })) })),
+      lines: pricing.lines.map((l) => ({ group: l.group || '', label: l.label, amount: Math.round(l.amount) })),
+      design,
+      preview,
+    });
+    toast('Pengajuan tersimpan di sistem DAZPRO');
+  } catch (err) {
+    console.warn('Pengajuan tidak tersimpan di database:', err);
+  }
+}
 
 $('#btn-quote').addEventListener('click', async () => {
   const fd = new FormData($('#submit-form'));

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Admin — DAZPRO Signage Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body class="admin">
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 8h7a8 8 0 010 16H9z" /></svg></span>
+      <span class="brand-name">DAZPRO<span class="brand-sub">Admin pengajuan</span></span>
+    </a>
+    <nav class="topnav">
+      <span class="muted small" id="who"></span>
+      <a class="btn btn-sm btn-ghost" href="index.html">Buka studio</a>
+      <button class="btn btn-sm btn-ghost" id="logout" hidden>Keluar</button>
+    </nav>
+  </header>
+
+  <main class="adm">
+    <section class="login" id="login" hidden>
+      <h1>Masuk admin</h1>
+      <p class="muted">Gunakan akun Google yang terdaftar sebagai admin.</p>
+      <button class="btn btn-primary" id="btn-login">Masuk dengan Google</button>
+      <p class="note" id="login-msg" hidden></p>
+    </section>
+
+    <section id="board" hidden>
+      <div class="stats" id="stats"></div>
+      <div class="toolbar">
+        <div class="seg-ctl" id="filters"></div>
+        <input class="input" id="search" placeholder="Cari nama, usaha, kota…" />
+      </div>
+      <div class="list" id="list"></div>
+      <p class="muted small" id="empty" hidden>Belum ada pengajuan.</p>
+    </section>
+    <p class="muted" id="state-msg">Memuat…</p>
+  </main>
+
+  <div class="drawer" id="detail" hidden>
+    <div class="drawer-card wide">
+      <div class="drawer-head"><h3 id="d-title">Detail</h3><button class="icon-btn" data-close aria-label="Tutup">✕</button></div>
+      <div id="d-body"></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
