@@ -9,10 +9,11 @@ const matName = (id) => (MATERIALS.find((m) => m.id === id) || {}).name || id;
 const m2 = (v) => v.toLocaleString('id-ID', { maximumFractionDigits: 2 });
 
 /**
- * @param state  state aplikasi
+ * Rincian biaya satu signage (tanpa pemasangan).
+ * @param state  tampilan item: { placement, sign, led, construction }
  * @param m      metrik hasil build { area, ledCount, letters, size, consArea, poleH, totemH }
  */
-export function computePrice(state, m) {
+export function computeItemLines(state, m) {
   const S = state.sign, L = state.led;
   const type = SIGN_TYPES.find((t) => t.id === S.type);
   const lines = [];
@@ -54,9 +55,29 @@ export function computePrice(state, m) {
   if (state.placement === 'totem' && m.totemH) {
     lines.push({ label: 'Struktur totem ACP', detail: `tinggi ${m2(m.totemH)} m`, amount: m.totemH * P.totemPerM });
   }
-  const pl = PLACEMENTS.find((p) => p.id === state.placement);
-  lines.push({ label: `Pemasangan — ${pl.name}`, detail: 'termasuk transport area kota', amount: P.install[state.placement] || 0 });
+  return lines;
+}
 
+/**
+ * Total desain: semua signage + satu biaya pemasangan
+ * (signage tambahan di lokasi yang sama +40% per unit).
+ * @param list [{ name, view, metrics }]
+ */
+export function computePrice(placement, list) {
+  const lines = [];
+  const multi = list.length > 1;
+  list.forEach((it) => {
+    for (const l of computeItemLines(it.view, it.metrics)) lines.push({ ...l, group: multi ? it.name : null });
+  });
+  const pl = PLACEMENTS.find((p) => p.id === placement);
+  const base = P.install[placement] || 0;
+  const extra = Math.max(0, list.length - 1);
+  lines.push({
+    label: `Pemasangan — ${pl.name}`,
+    detail: extra ? `${list.length} signage · termasuk transport area kota` : 'termasuk transport area kota',
+    amount: base * (1 + 0.4 * extra),
+    group: multi ? 'Pemasangan' : null,
+  });
   const total = lines.reduce((a, l) => a + l.amount, 0);
   return { lines, total };
 }

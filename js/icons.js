@@ -20,6 +20,12 @@ export const ICONS = {
   moon: s('<path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/>'),
   camera: s('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'),
   expand: s('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
+  plus: s('<path d="M12 5v14M5 12h14"/>'),
+  copy: s('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/>'),
+  trash: s('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
+  undo: s('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>'),
+  redo: s('<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/>'),
+  ruler: s('<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>'),
   upload: s('<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'),
   // ilustrasi kartu lokasi
   rooftop: big('<rect x="18" y="12" width="28" height="23" rx="1"/><path d="M22 17h4M30 17h4M38 17h4M22 22h4M30 22h4M38 22h4M22 27h4M30 27h4M38 27h4"/><path d="M24 12V9M40 12V9M24 9l16 0"/><rect x="21" y="2" width="22" height="7" rx="1" stroke="#2f5bff"/>'),

@@ -19,7 +19,9 @@ export class Engine {
     this.container = container;
     this.hooks = hooks;
     this.clock = new THREE.Clock();
-    this.fx = { glow: [], halo: null, light: null, lightBase: 0, effect: 'static', ledColor: new THREE.Color('#fff'), on: true };
+    this.items = new Map(); // id -> { root, sign, support, dims, fx }
+    this.selectedId = null;
+    this.showSelection = false;
     this.ctx = { windowMats: [], lampMats: [], lampLights: [] };
     this.timeKey = 'dusk';
     this.mode = 'orbit';
@@ -68,8 +70,15 @@ export class Engine {
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
-    this.roots = { city: new THREE.Group(), hero: new THREE.Group(), support: new THREE.Group(), sign: new THREE.Group() };
+    this.roots = { city: new THREE.Group(), hero: new THREE.Group(), items: new THREE.Group() };
     for (const g of Object.values(this.roots)) this.scene.add(g);
+    this.selBox = new THREE.Box3Helper(new THREE.Box3(), new THREE.Color('#5b8cff'));
+    this.selBox.material.depthTest = false;
+    this.selBox.material.transparent = true;
+    this.selBox.material.opacity = 0.9;
+    this.selBox.renderOrder = 20;
+    this.selBox.visible = false;
+    this.scene.add(this.selBox);
 
     this._setupWalk();
     this._setupDrag();
@@ -135,47 +144,113 @@ export class Engine {
     this._replace('hero', group);
     this._applyEnvLevels();
   }
-  setSupport(group) { this._replace('support', group); }
-  setSign(group, fx) {
-    this._replace('sign', group);
-    this.fx = { ...this.fx, ...fx };
-    for (const g of this.fx.glow || []) g.mat.userData.baseEmissive = g.mat.emissive.clone();
-  }
   setCityVisible(v) { this.roots.city.visible = v; }
+
+  static dispose(obj) {
+    obj.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+      for (const m of mats) {
+        for (const k of ['map', 'emissiveMap']) if (m[k] && !m[k].userData.shared && !m[k].userData.keep) m[k].dispose();
+        m.dispose();
+      }
+    });
+  }
 
   _replace(key, group) {
     const root = this.roots[key];
-    for (const c of [...root.children]) {
-      root.remove(c);
-      c.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
-        const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
-        for (const m of mats) {
-          for (const k of ['map', 'emissiveMap']) if (m[k] && !m[k].userData.shared && !m[k].userData.keep) m[k].dispose();
-          m.dispose();
-        }
-      });
-    }
+    for (const c of [...root.children]) { root.remove(c); Engine.dispose(c); }
     if (group) root.add(group);
   }
 
-  setSignTransform(pos, rotY) {
-    this.roots.sign.position.copy(pos);
-    this.roots.sign.rotation.set(0, rotY, 0);
+  // ---------- item signage ----------
+  _item(id) {
+    let it = this.items.get(id);
+    if (!it) {
+      const root = new THREE.Group();
+      root.userData.itemId = id;
+      const sign = new THREE.Group(); sign.userData.itemId = id;
+      const support = new THREE.Group();
+      const dims = new THREE.Group(); dims.userData.noPick = true;
+      sign.add(dims);
+      root.add(sign, support);
+      this.roots.items.add(root);
+      it = { root, sign, support, dims, body: null, fx: { glow: [], halo: null, light: null, lightBase: 0, effect: 'static', ledColor: new THREE.Color('#fff') } };
+      this.items.set(id, it);
+    }
+    return it;
   }
-  setSupportTransform(pos, rotY) {
-    this.roots.support.position.copy(pos);
-    this.roots.support.rotation.set(0, rotY, 0);
+
+  setItemSign(id, group, fx) {
+    const it = this._item(id);
+    if (it.body) { it.sign.remove(it.body); Engine.dispose(it.body); }
+    it.body = group;
+    if (group) it.sign.add(group);
+    it.fx = { ...it.fx, ...fx };
+    for (const g of it.fx.glow || []) g.mat.userData.baseEmissive = g.mat.emissive.clone();
+  }
+
+  setItemSupport(id, group) {
+    const it = this._item(id);
+    for (const c of [...it.support.children]) { it.support.remove(c); Engine.dispose(c); }
+    if (group) it.support.add(group);
+  }
+
+  setItemTransform(id, signPos, signRot, supportPos, supportRot) {
+    const it = this._item(id);
+    it.sign.position.copy(signPos);
+    it.sign.rotation.set(0, signRot, 0);
+    it.support.position.copy(supportPos);
+    it.support.rotation.set(0, supportRot, 0);
+    if (id === this.selectedId) this._updateSelBox();
+  }
+
+  setItemDims(id, group) {
+    const it = this._item(id);
+    for (const c of [...it.dims.children]) { it.dims.remove(c); Engine.dispose(c); }
+    if (group) it.dims.add(group);
+  }
+
+  removeItem(id) {
+    const it = this.items.get(id);
+    if (!it) return;
+    this.roots.items.remove(it.root);
+    Engine.dispose(it.root);
+    this.items.delete(id);
+    if (this.selectedId === id) { this.selectedId = null; this.selBox.visible = false; }
+  }
+
+  select(id, show) {
+    this.selectedId = id;
+    this.showSelection = show;
+    this._updateSelBox();
+  }
+
+  _updateSelBox() {
+    const it = this.items.get(this.selectedId);
+    if (!it || !it.body || !this.showSelection || this.mode === 'walk') { this.selBox.visible = false; return; }
+    it.sign.updateMatrixWorld(true);
+    const b = new THREE.Box3();
+    it.body.traverse((o) => {
+      if (o.isMesh && !o.userData.noPick && o.geometry) {
+        o.geometry.computeBoundingBox();
+        b.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld));
+      }
+    });
+    if (b.isEmpty()) { this.selBox.visible = false; return; }
+    b.expandByScalar(0.06);
+    this.selBox.box.copy(b);
+    this.selBox.visible = true;
   }
 
   // ---------- kamera ----------
-  focus(target, size) { this.focusTarget = target.clone(); this.focusSize = size; }
+  focus(target, size, rotY = 0) { this.focusTarget = target.clone(); this.focusSize = size; this.focusRot = rotY; }
 
   cameraPreset(name, instant = false) {
     if (this.mode === 'walk') this.exitWalk();
     const t = this.focusTarget || new THREE.Vector3(0, 3, 0);
     const s = this.focusSize || { w: 3, h: 1 };
-    const yaw = this.roots.sign.rotation.y;
+    const yaw = this.focusRot || 0;
     const d = Math.max(s.w, s.h * 2.2) * 1.45 + 3.2;
     const local = {
       hero: new THREE.Vector3(d * 0.42, s.h * 0.35 + 1.2, d * 1.05),
@@ -208,25 +283,26 @@ export class Engine {
 
   // ---------- efek LED per frame ----------
   _applyFx(time) {
-    const f = this.fx;
-    let k = 1;
-    if (f.effect === 'breath') k = 0.55 + 0.45 * Math.sin(time * 2.2);
-    else if (f.effect === 'blink') k = Math.sin(time * Math.PI * 1.6) > -0.2 ? 1 : 0.04;
-    let col = null;
-    if (f.effect === 'rgb') col = new THREE.Color().setHSL((time * 0.12) % 1, 1, 0.55);
     const tk = this.timeKey === 'day' ? 0.55 : this.timeKey === 'dusk' ? 0.85 : 1;
-    for (const g of f.glow || []) {
-      g.mat.emissiveIntensity = g.base * k * tk;
-      if (col) g.mat.emissive.copy(col); else if (g.mat.userData.baseEmissive) g.mat.emissive.copy(g.mat.userData.baseEmissive);
-    }
-    if (f.halo) {
-      f.halo.mat.opacity = Math.min(1, f.halo.base * k * (this.timeKey === 'day' ? 0.5 : 1));
-      if (col) f.halo.mat.color.copy(col); else f.halo.mat.color.copy(f.ledColor);
-    }
-    if (f.light) {
-      const nightK = this.timeKey === 'night' ? 1 : this.timeKey === 'dusk' ? 0.6 : 0.15;
-      f.light.intensity = f.lightBase * k * nightK;
-      if (col) f.light.color.copy(col); else f.light.color.copy(f.ledColor);
+    const nightK = this.timeKey === 'night' ? 1 : this.timeKey === 'dusk' ? 0.6 : 0.15;
+    for (const it of this.items.values()) {
+      const f = it.fx;
+      let k = 1;
+      if (f.effect === 'breath') k = 0.55 + 0.45 * Math.sin(time * 2.2);
+      else if (f.effect === 'blink') k = Math.sin(time * Math.PI * 1.6) > -0.2 ? 1 : 0.04;
+      const col = f.effect === 'rgb' ? new THREE.Color().setHSL((time * 0.12) % 1, 1, 0.55) : null;
+      for (const g of f.glow || []) {
+        g.mat.emissiveIntensity = g.base * k * tk;
+        if (col) g.mat.emissive.copy(col); else if (g.mat.userData.baseEmissive) g.mat.emissive.copy(g.mat.userData.baseEmissive);
+      }
+      if (f.halo) {
+        f.halo.mat.opacity = Math.min(1, f.halo.base * k * (this.timeKey === 'day' ? 0.5 : 1));
+        f.halo.mat.color.copy(col || f.ledColor);
+      }
+      if (f.light) {
+        f.light.intensity = f.lightBase * k * nightK;
+        f.light.color.copy(col || f.ledColor);
+      }
     }
   }
 
@@ -268,16 +344,23 @@ export class Engine {
     };
     const pickSign = () => {
       const meshes = [];
-      this.roots.sign.traverse((o) => { if (o.isMesh && !o.userData.noPick && o.visible) meshes.push(o); });
-      return ray.intersectObjects(meshes, false)[0];
+      this.roots.items.traverse((o) => { if (o.isMesh && !o.userData.noPick && o.visible) meshes.push(o); });
+      const hit = ray.intersectObjects(meshes, false)[0];
+      if (!hit) return null;
+      let o = hit.object;
+      while (o && o.userData.itemId === undefined) o = o.parent;
+      return o ? { id: o.userData.itemId, hit } : null;
     };
     el.addEventListener('pointerdown', (e) => {
-      if (this.mode !== 'orbit' || e.button !== 0 || !this.dragPlane) return;
+      if (this.mode !== 'orbit' || e.button !== 0) return;
       toNdc(e);
       const hit = pickSign();
       if (!hit) return;
+      const info = this.hooks.onPick ? this.hooks.onPick(hit.id) : null;
+      if (!info) return;
+      this.dragPlane = info.plane; this.dragOrigin = info.origin;
       if (!ray.ray.intersectPlane(this.dragPlane, hitPoint)) return;
-      drag = { offset: new THREE.Vector3().subVectors(this.dragOrigin(), hitPoint), id: e.pointerId };
+      drag = { offset: new THREE.Vector3().subVectors(this.dragOrigin(), hitPoint), id: e.pointerId, item: hit.id };
       this.controls.enabled = false;
       el.setPointerCapture(e.pointerId);
       el.style.cursor = 'grabbing';
@@ -289,7 +372,7 @@ export class Engine {
       toNdc(e);
       if (drag) {
         if (ray.ray.intersectPlane(this.dragPlane, hitPoint)) {
-          this.hooks.onDrag && this.hooks.onDrag(hitPoint.add(drag.offset));
+          this.hooks.onDrag && this.hooks.onDrag(drag.item, hitPoint.add(drag.offset));
         }
         return;
       }
@@ -307,8 +390,6 @@ export class Engine {
     el.addEventListener('pointercancel', end);
   }
 
-  /** plane: THREE.Plane, origin: () => Vector3 posisi acuan signage saat ini */
-  setDragPlane(plane, originFn) { this.dragPlane = plane; this.dragOrigin = originFn; }
 
   // ---------- mode jalan 3D (third / first person) ----------
   _setupWalk() {
@@ -372,6 +453,7 @@ export class Engine {
     this.walk.yaw = Math.atan2(t.x - start.x, t.z - start.z) + Math.PI;
     this.walk.pitch = -0.05 + Math.min(0.5, Math.max(0, (t.y - 2) / 25));
     this.avatar.group.visible = this.walk.view === 'third';
+    this.selBox.visible = false;
     this.hooks.onModeChange && this.hooks.onModeChange('walk');
   }
 
@@ -383,6 +465,7 @@ export class Engine {
     this.walk.keys.clear();
     this.walk.joy.x = this.walk.joy.y = 0;
     this.hooks.onModeChange && this.hooks.onModeChange('orbit');
+    this._updateSelBox();
     this.cameraPreset('front');
   }
 
@@ -439,8 +522,41 @@ export class Engine {
     }
   }
 
-  screenshot() {
+  /** Render satu bidikan dari preset kamera tanpa mengubah tampilan pengguna. */
+  captureView(target, size, rotY, preset = 'front', w = 1200, h = 675) {
+    const save = { pos: this.camera.position.clone(), tgt: this.controls.target.clone(), ft: this.focusTarget, fs: this.focusSize, fr: this.focusRot, sel: this.selBox.visible, aspect: this.camera.aspect };
+    const dims = [];
+    this.roots.items.traverse((o) => { if (o.userData.isDims) { dims.push([o, o.visible]); o.visible = false; } });
+    this.focus(target, size, rotY);
+    this.cameraPreset(preset, true);
+    this.selBox.visible = false;
+    const cw = this.renderer.domElement.width, ch = this.renderer.domElement.height;
+    this.camera.aspect = cw / ch;
+    this.camera.updateProjectionMatrix();
+    this.camera.lookAt(this.controls.target);
     this.composer.render();
-    return this.renderer.domElement.toDataURL('image/png');
+    const src = this.renderer.domElement;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const k = Math.max(w / src.width, h / src.height);
+    const dw = src.width * k, dh = src.height * k;
+    c.getContext('2d').drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    // pulihkan
+    this.camera.position.copy(save.pos); this.controls.target.copy(save.tgt);
+    this.focusTarget = save.ft; this.focusSize = save.fs; this.focusRot = save.fr;
+    this.camera.aspect = save.aspect; this.camera.updateProjectionMatrix();
+    this.controls.update();
+    this.selBox.visible = save.sel;
+    for (const [o, v] of dims) o.visible = v;
+    this.composer.render();
+    return c.toDataURL('image/jpeg', 0.88);
+  }
+
+  screenshot() {
+    const sel = this.selBox.visible;
+    this.selBox.visible = false;
+    this.composer.render();
+    const url = this.renderer.domElement.toDataURL('image/png');
+    this.selBox.visible = sel;
+    return url;
   }
 }

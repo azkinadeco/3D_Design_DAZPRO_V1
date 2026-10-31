@@ -20,7 +20,12 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Konstruksi** | Rangka besi hollow untuk Atas Gedung & Atas Kafe: tinggi kaki, warna; jumlah kaki menyesuaikan lebar |
 | **Kamera** | Depan, Samping, Atas, Dekat, Pejalan, **Jalan 3D** (orang ketiga/pertama, WASD + joystick layar sentuh, lari) |
 | **Waktu** | Siang / Senja / Malam (jendela gedung & lampu jalan menyala malam hari) |
-| **Ajukan** | Rincian estimasi, simpan PNG, kirim ringkasan + estimasi ke WhatsApp |
+| **Multi-signage** | Sampai 6 signage dalam satu desain (mis. huruf timbul fasad + neon box). Tambah, duplikat, hapus; klik signage di 3D untuk memilih & menyeret. Tiap signage punya model, teks, bahan, LED, konstruksi & posisi sendiri |
+| **Garis ukuran** | Tombol penggaris: lebar, tinggi, dan elevasi (dari tanah / atap / lantai) langsung di 3D |
+| **Urungkan / Ulangi** | Tombol di viewport + Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) |
+| **Bagikan link** | Desain dikodekan ke link (`#d=…`, terkompresi) — buka di perangkat lain tanpa server. Foto/logo tidak ikut link |
+| **Penawaran PDF** | Dokumen A4: nomor & tanggal penawaran, data pelanggan, visual 3D, tampak depan tiap signage, tabel spesifikasi, rincian biaya, ketentuan → Simpan sebagai PDF dari dialog cetak |
+| **Ajukan** | Rincian estimasi (dikelompokkan per signage), simpan PNG, kirim ringkasan + estimasi ke WhatsApp |
 | **Proyek** | Simpan di perangkat, buka simpanan, export/import `.json`, autosave |
 
 ## Struktur
@@ -36,6 +41,8 @@ js/signage.js         model neon box & huruf timbul, LED, halo
 js/fonts.js           teks → bentuk 3D (dari data glyph)
 js/materials.js       material acrylic/stainless/gold/ACP/mirror
 js/pricing.js         rumus estimasi biaya
+js/dims.js            garis ukuran 3D
+js/quote.js           dokumen penawaran (cetak/PDF)
 fonts/*.json          data glyph font (dibuat oleh tools/build_fonts.py), lisensi di fonts/licenses
 vendor/three/         Three.js r169 + addons (tanpa CDN)
 ```
@@ -64,8 +71,9 @@ python3 -m http.server 8080
 - **Warna/LED/bahan**: `SWATCHES`, `LED_COLORS`, `MATERIALS`.
 - **Tambah font**: taruh file TTF/OTF, tambahkan entri di `FONTS` dalam `tools/build_fonts.py`, lalu jalankan `python3 tools/build_fonts.py` (butuh `pip install fonttools`).
 
-## Rencana berikutnya (belum di V1)
+Simpanan V1 (satu signage) otomatis dimigrasikan ke format multi-signage.
 
-- Panel admin + database pengajuan (seperti `/admin` di project dekorasi).
-- Link desain yang bisa dibagikan (`/d/<kode>`).
-- Ekspor PDF penawaran.
+## Rencana berikutnya
+
+- Panel admin + database pengajuan (seperti `/admin` di project dekorasi) — butuh layanan database (mis. Vercel Postgres/KV).
+- Model tambahan (neon flex, papan nama 2 sisi, billboard).

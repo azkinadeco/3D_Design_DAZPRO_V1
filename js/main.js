@@ -3,12 +3,15 @@ import * as THREE from 'three';
 import { Engine } from './engine.js';
 import { buildCity, buildHero, placementInfo, buildConstruction, buildTotem, buildPole } from './environment.js';
 import { buildSign } from './signage.js';
+import { buildDims } from './dims.js';
 import { loadFont, loadFontIndex, drawTextFit } from './fonts.js';
 import { MAT_DEFAULT_COLOR } from './materials.js';
 import { computePrice, formatRp } from './pricing.js';
 import { ICONS } from './icons.js';
+import { buildQuote } from './quote.js';
 import {
-  BRAND, PLACEMENTS, SIGN_TYPES, MATERIALS, SWATCHES, LED_COLORS, LED_MODES, LED_EFFECTS, LED_DENSITY, TIMES, BG_PRESETS, defaultState,
+  BRAND, PLACEMENTS, SIGN_TYPES, MATERIALS, SWATCHES, LED_COLORS, LED_MODES, LED_EFFECTS, LED_DENSITY, TIMES, BG_PRESETS,
+  MAX_ITEMS, defaultState, defaultItem,
 } from './config.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -16,6 +19,7 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = (n, d = 2) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: d });
 const clamp = THREE.MathUtils.clamp;
+const UP = new THREE.Vector3(0, 1, 0);
 
 // ---------- penyimpanan aman ----------
 const store = {
@@ -35,14 +39,50 @@ function deepMerge(base, over) {
 }
 
 // ---------- state ----------
-let state = deepMerge(defaultState(), store.get('dazpro.current'));
-const posMemory = {}; // posisi terakhir per lokasi
-const assets = { logo: null, wallTex: null, bgTex: null };
+// state.items = daftar signage; state.sign / led / construction / pos = alias ke signage aktif
+const ITEM_KEYS = ['sign', 'led', 'construction', 'pos'];
+function attach(s) {
+  for (const k of ITEM_KEYS) {
+    Object.defineProperty(s, k, {
+      get() { return s.items[s.active][k]; },
+      set(v) { s.items[s.active][k] = v; },
+      enumerable: false, configurable: true,
+    });
+  }
+  return s;
+}
+/** Terima state lama (V1, satu signage) maupun baru, kembalikan state V2 yang lengkap. */
+function normalize(raw) {
+  let r = raw && typeof raw === 'object' ? { ...raw } : null;
+  if (r && !Array.isArray(r.items) && r.sign) {
+    r.items = [{ id: 1, sign: r.sign, led: r.led, construction: r.construction, pos: r.pos }];
+    r.active = 0;
+  }
+  const s = deepMerge(defaultState(), r);
+  const seen = new Set();
+  s.items = (Array.isArray(s.items) ? s.items : []).slice(0, MAX_ITEMS).map((it, i) => {
+    let id = Number(it && it.id) || i + 1;
+    while (seen.has(id)) id++;
+    seen.add(id);
+    return deepMerge(defaultItem(id), { ...it, id });
+  });
+  if (!s.items.length) s.items = [defaultItem(1)];
+  s.active = clamp(Number(s.active) || 0, 0, s.items.length - 1);
+  s.v = 2;
+  return attach(s);
+}
+
+let state = normalize(store.get('dazpro.current'));
+const assets = { logos: new Map(), wallTex: null, bgTex: null, wallAspect: null };
+const logoCache = new Map();
 let fontIndex = [];
 let tab = 'lokasi';
-let signRes = null;
-let mountRes = null;
 let pricing = { lines: [], total: 0 };
+const runtime = new Map(); // id -> { res, m }
+
+const activeItem = () => state.items[state.active];
+const itemName = (it, i = state.items.indexOf(it)) => (it.sign.text.split('\n')[0].trim() || SIGN_TYPES.find((t) => t.id === it.sign.type).name).slice(0, 18) || `Signage ${i + 1}`;
+const viewOf = (it) => ({ placement: state.placement, sign: it.sign, led: it.led, construction: it.construction, pos: it.pos });
 
 const getPath = (obj, path) => path.split('.').reduce((o, k) => (o ? o[k] : undefined), obj);
 function setPath(obj, path, val) {
@@ -55,13 +95,22 @@ function setPath(obj, path, val) {
 // ---------- engine ----------
 const viewport = $('#viewport');
 const engine = new Engine(viewport, {
-  onDrag(p) {
+  onPick(id) {
+    const i = state.items.findIndex((it) => it.id === id);
+    if (i < 0) return null;
+    if (i !== state.active) { state.active = i; onActiveChanged(); }
+    const rt = runtime.get(id);
+    return rt && rt.m ? { plane: rt.m.plane, origin: rt.m.origin } : null;
+  },
+  onDrag(id, p) {
+    const it = state.items.find((x) => x.id === id);
+    if (!it) return;
     const info = placementInfo(state);
-    if (info.kind === 'wall') { state.pos.x = p.x; state.pos.y = p.y; } else { state.pos.x = p.x; state.pos.z = p.z; }
-    mount(false);
+    if (info.kind === 'wall') { it.pos.x = p.x; it.pos.y = p.y; } else { it.pos.x = p.x; it.pos.z = p.z; }
+    mountItem(it, false);
     syncPosInputs();
   },
-  onDragEnd() { autosave(); updateSummary(); },
+  onDragEnd() { autosave(); updateSummary(); commit(); },
   onModeChange(m) {
     $('#walk-ui').hidden = m !== 'walk';
     $('#vp-hint').hidden = m === 'walk';
@@ -73,8 +122,10 @@ const engine = new Engine(viewport, {
 // ---------- pipeline build ----------
 let pending = {};
 let scheduled = false;
-let signToken = 0;
+let ready = false;
+const tokens = new Map();
 function invalidate(flags) {
+  if (flags.signs && pending.signs === 'all') flags = { ...flags, signs: 'all' };
   Object.assign(pending, flags);
   if (scheduled) return;
   scheduled = true;
@@ -85,15 +136,15 @@ async function flush() {
   const f = pending; pending = {};
   if (f.time) applyTime();
   if (f.hero) rebuildHero();
-  if (f.sign) { await rebuildSign(); return; } // rebuildSign memanggil mount
-  if (f.hero || f.mount) mount(true);
+  if (f.signs === 'all') await rebuildAll();
+  else if (f.signs === 'active') await rebuildItem(activeItem());
+  if ((f.mount || f.hero) && f.signs !== 'all') state.items.forEach((it) => mountItem(it, true));
+  afterBuild();
 }
 
 function applyTime() {
   engine.setTime(state.time, state.bg, assets.bgTex);
   engine.setCityVisible(state.env.showCity !== false);
-  const ground = engine.roots.city.getObjectByName('ground');
-  if (ground) ground.visible = true;
 }
 
 function rebuildHero() {
@@ -102,53 +153,62 @@ function rebuildHero() {
   engine.setHero(group, ctx);
 }
 
-async function rebuildSign() {
-  const token = ++signToken;
-  let font;
-  try { font = await loadFont(state.sign.font); } catch (e) {
-    toast('Font gagal dimuat, memakai Poppins');
-    state.sign.font = 'poppins';
-    font = await loadFont('poppins');
-  }
-  if (token !== signToken) return;
-  signRes = buildSign(state, font, assets);
-  engine.setSign(signRes.group, {
-    glow: signRes.glow, halo: signRes.halo, light: signRes.light, lightBase: signRes.lightBase || 0,
-    effect: state.led.effect, ledColor: new THREE.Color(state.led.color),
-  });
-  mount(true);
-  showWarnings();
+async function rebuildAll() {
+  const ids = new Set(state.items.map((it) => it.id));
+  for (const id of [...runtime.keys()]) if (!ids.has(id)) { engine.removeItem(id); runtime.delete(id); }
+  await Promise.all(state.items.map((it) => rebuildItem(it)));
 }
 
-/** Tempatkan signage & struktur pendukung sesuai lokasi. */
-function mount(rebuildSupport) {
-  if (!signRes) return;
+async function rebuildItem(it) {
+  if (!it) return;
+  const token = (tokens.get(it.id) || 0) + 1;
+  tokens.set(it.id, token);
+  let font;
+  try { font = await loadFont(it.sign.font); } catch (e) {
+    toast('Font gagal dimuat, memakai Poppins');
+    it.sign.font = 'poppins';
+    font = await loadFont('poppins');
+  }
+  if (tokens.get(it.id) !== token || !state.items.includes(it)) return;
+  const res = buildSign(viewOf(it), font, { logo: assets.logos.get(it.id) || null });
+  engine.setItemSign(it.id, res.group, {
+    glow: res.glow, halo: res.halo, light: res.light, lightBase: res.lightBase || 0,
+    effect: it.led.effect, ledColor: new THREE.Color(it.led.color),
+  });
+  runtime.set(it.id, { ...(runtime.get(it.id) || {}), res });
+  mountItem(it, true);
+}
+
+/** Tempatkan satu signage & struktur pendukungnya sesuai lokasi. */
+function mountItem(it, rebuildSupport) {
+  const rt = runtime.get(it.id);
+  if (!rt || !rt.res) return;
   const info = placementInfo(state);
-  const size = signRes.size;
-  const p = state.pos;
-  const rot = THREE.MathUtils.degToRad(state.pos.rot || 0);
-  const up = new THREE.Vector3(0, 1, 0);
-  let signPos, supportPos, signRot = rot, plane, origin;
-  const res = { consArea: 0, poleH: 0, totemH: 0 };
+  const size = rt.res.size;
+  const p = it.pos;
+  const rot = THREE.MathUtils.degToRad(p.rot || 0);
+  let signPos, supportPos, signRot = rot, plane, origin, elevation = 0, elevLabel = 'dari tanah';
+  const m = { consArea: 0, poleH: 0, totemH: 0 };
 
   if (info.kind === 'roof') {
     const hx = Math.max(0, (info.x[1] - info.x[0]) / 2 - size.w / 2 - 0.3);
     p.x = clamp(p.x, -hx, hx);
     p.z = clamp(p.z, info.z[0] + 2.6, info.z[1] - 0.4);
-    const consH = state.construction.on ? state.construction.height / 100 : 0;
-    signPos = new THREE.Vector3(p.x, info.roofY + (state.construction.on ? consH : 0.02), p.z);
+    const consH = it.construction.on ? it.construction.height / 100 : 0;
+    signPos = new THREE.Vector3(p.x, info.roofY + (it.construction.on ? consH : 0.02), p.z);
     supportPos = new THREE.Vector3(p.x, info.roofY, p.z);
     if (rebuildSupport) {
       const g = new THREE.Group();
-      if (state.construction.on) {
-        const c = buildConstruction(size, consH, state.construction.color);
+      if (it.construction.on) {
+        const c = buildConstruction(size, consH, it.construction.color);
         g.add(c);
-        res.consArea = c.userData.frameArea;
+        m.consArea = c.userData.frameArea;
       }
-      engine.setSupport(g);
-    } else if (mountRes) res.consArea = mountRes.consArea;
-    plane = new THREE.Plane(up, -info.roofY);
-    origin = () => new THREE.Vector3(state.pos.x, info.roofY, state.pos.z);
+      engine.setItemSupport(it.id, g);
+    } else if (rt.m) m.consArea = rt.m.consArea;
+    elevation = consH; elevLabel = 'dari atap';
+    plane = new THREE.Plane(UP, -info.roofY);
+    origin = () => new THREE.Vector3(it.pos.x, info.roofY, it.pos.z);
   } else if (info.kind === 'ground') {
     p.x = clamp(p.x, info.x[0], info.x[1]);
     p.z = clamp(p.z, info.z[0], info.z[1]);
@@ -156,19 +216,20 @@ function mount(rebuildSupport) {
     let local;
     if (state.placement === 'totem') {
       const t = buildTotem(size, state.env.totemHeight, state.env.structColor);
-      if (rebuildSupport) engine.setSupport(t.group);
+      if (rebuildSupport) engine.setItemSupport(it.id, t.group);
       local = new THREE.Vector3(0, t.signY, t.frontZ);
-      res.totemH = t.height;
+      m.totemH = t.height;
     } else {
-      const isBox = state.sign.type.startsWith('box_');
+      const isBox = it.sign.type.startsWith('box_');
       const t = buildPole(size, state.env.poleHeight, state.env.structColor, isBox);
-      if (rebuildSupport) engine.setSupport(t.group);
+      if (rebuildSupport) engine.setItemSupport(it.id, t.group);
       local = new THREE.Vector3(0, t.signY, -size.d / 2);
-      res.poleH = state.env.poleHeight + size.h * 0.5;
+      m.poleH = state.env.poleHeight + size.h * 0.5;
     }
-    signPos = local.applyAxisAngle(up, rot).add(supportPos);
-    plane = new THREE.Plane(up, 0);
-    origin = () => new THREE.Vector3(state.pos.x, 0, state.pos.z);
+    signPos = local.applyAxisAngle(UP, rot).add(supportPos);
+    elevation = signPos.y;
+    plane = new THREE.Plane(UP, 0);
+    origin = () => new THREE.Vector3(it.pos.x, 0, it.pos.z);
   } else {
     const W = state.wall.width, H = state.wall.height;
     const hx = Math.max(0, W / 2 - size.w / 2);
@@ -177,65 +238,91 @@ function mount(rebuildSupport) {
     signPos = new THREE.Vector3(p.x, p.y, 0);
     supportPos = new THREE.Vector3();
     signRot = 0;
-    if (rebuildSupport) engine.setSupport(null);
+    if (rebuildSupport) engine.setItemSupport(it.id, null);
+    elevation = p.y; elevLabel = 'dari lantai';
     plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-    origin = () => new THREE.Vector3(state.pos.x, state.pos.y, 0);
+    origin = () => new THREE.Vector3(it.pos.x, it.pos.y, 0);
   }
-  engine.setSignTransform(signPos, signRot);
-  engine.setSupportTransform(supportPos, info.kind === 'wall' ? 0 : rot);
-  engine.setDragPlane(plane, origin);
-  const center = new THREE.Vector3(0, size.h / 2, size.d / 2).applyAxisAngle(up, signRot).add(signPos);
-  engine.focus(center, size);
-  mountRes = res;
+  engine.setItemTransform(it.id, signPos, signRot, supportPos, info.kind === 'wall' ? 0 : rot);
+  const center = new THREE.Vector3(0, size.h / 2, size.d / 2).applyAxisAngle(UP, signRot).add(signPos);
+  // garis ukuran (dibuat ulang hanya bila berubah)
+  const showD = state.showDims && it === activeItem();
+  const dimKey = showD ? `${size.w.toFixed(3)}|${size.h.toFixed(3)}|${size.d.toFixed(3)}|${elevation.toFixed(2)}|${elevLabel}` : '';
+  if (!rt.m || rt.m.dimKey !== dimKey) engine.setItemDims(it.id, showD ? buildDims(size, elevation, elevLabel) : null);
+  rt.m = { ...m, plane, origin, center, rot: signRot, size, elevation, elevLabel, dimKey };
+  if (it === activeItem()) engine.focus(center, size, signRot);
+}
+
+function afterBuild() {
+  engine.select(activeItem().id, state.items.length > 1);
   updateSummary();
   updateSpec();
-  if (!mount.ready) {
-    mount.ready = true;
+  showWarnings();
+  if (!ready && runtime.get(activeItem().id)?.m) {
+    ready = true;
     engine.cameraPreset(state.placement === 'wall' ? 'front' : state.placement === 'rooftop' ? 'street' : 'hero', true);
     $('#loader').classList.add('done');
   }
 }
 
+function onActiveChanged() {
+  if (state.showDims) state.items.forEach((it) => mountItem(it, false));
+  const rt = runtime.get(activeItem().id);
+  if (rt && rt.m) engine.focus(rt.m.center, rt.m.size, rt.m.rot);
+  engine.select(activeItem().id, state.items.length > 1);
+  renderItems();
+  renderPanel();
+  updateSummary();
+  updateSpec();
+  showWarnings();
+}
+
 function showWarnings() {
   const w = $('#vp-warn');
-  const list = signRes ? signRes.warnings : [];
+  const rt = runtime.get(activeItem().id);
+  const list = rt && rt.res ? rt.res.warnings : [];
   w.hidden = !list.length;
   w.textContent = list.join(' ');
 }
 
 // ---------- ringkasan & harga ----------
-function metrics() {
+function metricsOf(it) {
+  const rt = runtime.get(it.id) || {};
+  const r = rt.res, m = rt.m || {};
   return {
-    area: signRes ? signRes.area : 0,
-    ledCount: signRes ? signRes.ledCount : 0,
-    letters: signRes ? signRes.letters : 0,
-    size: signRes ? signRes.size : null,
-    consArea: mountRes ? mountRes.consArea : 0,
-    poleH: mountRes ? mountRes.poleH : 0,
-    totemH: mountRes ? mountRes.totemH : 0,
+    area: r ? r.area : 0, ledCount: r ? r.ledCount : 0, letters: r ? r.letters : 0, size: r ? r.size : null,
+    consArea: m.consArea || 0, poleH: m.poleH || 0, totemH: m.totemH || 0,
   };
 }
 
+function describe(it) {
+  const S = it.sign;
+  const rt = runtime.get(it.id);
+  const type = SIGN_TYPES.find((t) => t.id === S.type);
+  const what = type.group === 'box' ? `${S.width}×${S.type === 'box_rect' ? S.height : S.width} cm` : `${rt && rt.res ? rt.res.letters : '?'} huruf × ${S.letterHeight} cm`;
+  return `${type.name} · ${what}${it.led.on && type.lit ? ' · LED ' + (LED_COLORS.find((c) => c.hex === it.led.color)?.name || 'custom') : ''}`;
+}
+
 function updateSummary() {
-  if (!signRes) return;
-  pricing = computePrice(state, metrics());
+  if (!state.items.every((it) => runtime.get(it.id)?.res)) return;
+  pricing = computePrice(state.placement, state.items.map((it, i) => ({ name: itemName(it, i), view: viewOf(it), metrics: metricsOf(it) })));
   $('#sum-price').textContent = formatRp(pricing.total);
-  const type = SIGN_TYPES.find((t) => t.id === state.sign.type);
   const pl = PLACEMENTS.find((p) => p.id === state.placement);
-  $('#sum-title').textContent = state.sign.text.split('\n')[0] || type.name;
-  const what = type.group === 'box' ? `${state.sign.width}×${state.sign.type === 'box_rect' ? state.sign.height : state.sign.width} cm` : `${signRes.letters} huruf × ${state.sign.letterHeight} cm`;
-  $('#sum-meta').textContent = `${type.name} · ${what} · ${pl.name}${state.led.on && type.lit ? ' · LED ' + (LED_COLORS.find((c) => c.hex === state.led.color)?.name || 'custom') : ''}`;
-  $('#vp-title').textContent = `${pl.name} · ${type.name}`;
+  const n = state.items.length;
+  $('#sum-title').textContent = n > 1 ? `${n} signage · ${pl.name}` : itemName(activeItem());
+  $('#sum-meta').textContent = n > 1 ? state.items.map((it, i) => itemName(it, i)).join(' · ') : `${describe(activeItem())} · ${pl.name}`;
+  $('#vp-title').textContent = `${pl.name} · ${SIGN_TYPES.find((t) => t.id === state.sign.type).name}`;
 }
 
 function updateSpec() {
-  if (!signRes) return;
-  const s = signRes.size;
-  $('#vp-spec').textContent = `L ${fmt(s.w)} m × T ${fmt(s.h)} m × D ${fmt(s.d * 100, 0)} cm`;
+  const rt = runtime.get(activeItem().id);
+  if (!rt || !rt.res) return;
+  const s = rt.res.size;
+  $('#vp-spec').textContent = `${state.items.length > 1 ? itemName(activeItem()) + ' · ' : ''}L ${fmt(s.w)} m × T ${fmt(s.h)} m × D ${fmt(s.d * 100, 0)} cm`;
   const out = $('#model-size');
   if (out) out.textContent = `Ukuran jadi ≈ ${fmt(s.w)} × ${fmt(s.h)} m`;
   const lc = $('#led-count');
-  if (lc) lc.textContent = signRes.ledCount ? `${signRes.ledCount} modul LED terpasang` : '';
+  if (lc) lc.textContent = rt.res.ledCount ? `${rt.res.ledCount} modul LED terpasang` : '';
 }
 
 // ---------- autosave ----------
@@ -243,6 +330,45 @@ let saveTimer = 0;
 function autosave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => store.set('dazpro.current', state), 400);
+}
+
+// ---------- riwayat (undo / redo) ----------
+const hist = { stack: [], idx: -1, imgId: new Map(), imgs: [] };
+function snap() {
+  return JSON.stringify(state, (k, v) => {
+    if (typeof v === 'string' && v.startsWith('data:')) {
+      if (!hist.imgId.has(v)) { hist.imgId.set(v, '@img' + hist.imgs.length); hist.imgs.push(v); }
+      return hist.imgId.get(v);
+    }
+    return v;
+  });
+}
+const unsnap = (str) => JSON.parse(str, (k, v) => (typeof v === 'string' && v.startsWith('@img') ? hist.imgs[+v.slice(4)] ?? null : v));
+function pushHistory() {
+  const s = snap();
+  if (s === hist.stack[hist.idx]) return;
+  hist.stack = hist.stack.slice(0, hist.idx + 1);
+  hist.stack.push(s);
+  if (hist.stack.length > 80) hist.stack.shift();
+  hist.idx = hist.stack.length - 1;
+  updateHistoryButtons();
+}
+let commitT = 0;
+function commit() { clearTimeout(commitT); commitT = setTimeout(pushHistory, 450); }
+async function travel(dir) {
+  clearTimeout(commitT);
+  pushHistory(); // simpan perubahan yang belum tercatat
+  const next = hist.idx + dir;
+  if (next < 0 || next >= hist.stack.length) return;
+  hist.idx = next;
+  await restore(unsnap(hist.stack[next]));
+  updateHistoryButtons();
+  toast(dir < 0 ? 'Dibatalkan' : 'Diulang');
+}
+function updateHistoryButtons() {
+  const u = $('#btn-undo'), r = $('#btn-redo');
+  if (u) u.disabled = hist.idx <= 0;
+  if (r) r.disabled = hist.idx >= hist.stack.length - 1;
 }
 
 // ================= UI PANEL =================
@@ -297,7 +423,7 @@ function panelLokasi() {
     <div class="group"><div class="cards">${PLACEMENTS.map((p) => `<button class="card ${S.placement === p.id ? 'active' : ''}" data-set="placement" data-value="${p.id}"><div class="ic">${ICONS[p.id]}</div><b>${p.name}</b><span>${p.desc}</span></button>`).join('')}</div></div>
     ${specific}
     <div class="divider"></div>
-    <div class="group"><div class="lbl">Posisi signage</div><p class="hint" style="margin:-4px 0 10px">Tip: seret langsung signage di layar 3D.</p>${posCtl}
+    <div class="group"><div class="lbl">Posisi${state.items.length > 1 ? `<span class="val">${esc(itemName(activeItem()))}</span>` : ' signage'}</div><p class="hint" style="margin:-4px 0 10px">Tip: seret langsung signage di layar 3D.</p>${posCtl}
       <button class="btn btn-sm btn-ghost" data-action="center">Kembalikan ke posisi awal</button></div>
     <div class="divider"></div>
     <div class="group"><div class="lbl">Latar belakang</div><div class="seg-ctl">${BG_PRESETS.map((b) => chip('bg.mode', b.id, b.name, S.bg.mode)).join('')}</div></div>
@@ -397,6 +523,15 @@ function panelStruktur() {
 
 const PANELS = { lokasi: panelLokasi, model: panelModel, teks: panelTeks, bahan: panelBahan, lampu: panelLampu, struktur: panelStruktur };
 
+function renderItems() {
+  const n = state.items.length;
+  const dot = (it) => (SIGN_TYPES.find((t) => t.id === it.sign.type).lit && it.led.on ? it.led.color : it.sign.front.color);
+  $('#items').innerHTML = `<div class="items-row">${state.items.map((it, i) => `<button class="item-chip ${i === state.active ? 'active' : ''}" data-item="${i}" title="${esc(describe(it))}"><i style="background:${esc(dot(it))}"></i>${esc(itemName(it, i))}</button>`).join('')}
+    ${n < MAX_ITEMS ? `<button class="item-chip add" data-item-act="add" title="Tambah signage" aria-label="Tambah signage">${ICONS.plus}${n === 1 ? '<span>Tambah signage</span>' : ''}</button>` : ''}</div>
+    <div class="items-acts">${n < MAX_ITEMS ? `<button class="icon-btn sm" data-item-act="dup" title="Duplikat signage aktif" aria-label="Duplikat">${ICONS.copy}</button>` : ''}
+    ${n > 1 ? `<button class="icon-btn sm" data-item-act="del" title="Hapus signage aktif" aria-label="Hapus">${ICONS.trash}</button>` : ''}</div>`;
+}
+
 function renderPanel() {
   renderTabs();
   const body = $('#panel-body');
@@ -429,29 +564,35 @@ function syncPosInputs() {
 // ---------- perubahan state ----------
 function routeFlags(path) {
   if (path === 'time' || path.startsWith('bg.') || path === 'env.showCity') return { time: true };
-  if (path === 'placement' || path.startsWith('env.') || path.startsWith('wall.')) return { hero: true, sign: true };
-  if (path.startsWith('sign.') || path.startsWith('led.')) return { sign: true };
-  if (path.startsWith('construction.')) return { mount: true };
-  if (path.startsWith('pos.')) return { mount: true };
-  return { sign: true };
+  if (path === 'placement' || path.startsWith('env.') || path.startsWith('wall.')) return { hero: true, signs: 'all' };
+  if (path.startsWith('sign.') || path.startsWith('led.')) return { signs: 'active' };
+  if (path.startsWith('construction.') || path.startsWith('pos.') || path === 'showDims') return { mount: true };
+  return { signs: 'active' };
 }
 
 const BOX_PRESET = { front: { mat: 'acrylic', color: '#ffffff' }, side: { mat: 'acp', color: '#15181e' }, textColor: '#d31d2a' };
 const LETTER_PRESET = { front: { mat: 'acrylic', color: '#ffffff' }, side: { mat: 'stainless', color: '#c9cdd3' } };
 const UNLIT_PRESET = { front: { mat: 'gold', color: '#d6b06a' }, side: { mat: 'gold', color: '#d6b06a' } };
 
+/** Posisi awal signage ke-i di lokasi saat ini. */
+function defaultPosFor(i, n) {
+  const info = placementInfo(state);
+  const spread = info.kind === 'wall' ? Math.min(3.2, state.wall.width / Math.max(n, 1)) : info.kind === 'roof' ? 4.2 : 4;
+  return { ...info.defaultPos, x: info.defaultPos.x + (i - (n - 1) / 2) * spread, rot: 0 };
+}
+
 function change(path, value, { rerender = false } = {}) {
   const prev = getPath(state, path);
   if (path === 'placement' && prev !== value) {
-    posMemory[prev] = { ...state.pos };
     state.placement = value;
-    const info = placementInfo(state);
-    state.pos = posMemory[value] ? { ...posMemory[value] } : { ...state.pos, ...info.defaultPos, rot: 0 };
-    if (value === 'cafe' && state.construction.height > 150) state.construction.height = 60;
-    if (value === 'rooftop' && state.construction.height < 60) state.construction.height = 120;
-    state.sign.backPanel.on = state.sign.backPanel.on || false;
-    invalidate({ hero: true, sign: true });
-    mount.ready = false;
+    const n = state.items.length;
+    state.items.forEach((it, i) => {
+      it.pos = defaultPosFor(i, n);
+      if (value === 'cafe' && it.construction.height > 150) it.construction.height = 60;
+      if (value === 'rooftop' && it.construction.height < 60) it.construction.height = 120;
+    });
+    invalidate({ hero: true, signs: 'all' });
+    ready = false;
     $('#loader').classList.remove('done');
     setTimeout(() => $('#loader').classList.add('done'), 600);
   } else if (path === 'sign.type' && prev !== value) {
@@ -462,7 +603,7 @@ function change(path, value, { rerender = false } = {}) {
     if (value === 'letters_unlit' && prev === 'letters_lit') Object.assign(state.sign, structuredClone(UNLIT_PRESET));
     if (value === 'letters_lit' && prev === 'letters_unlit') Object.assign(state.sign, structuredClone(LETTER_PRESET));
     if (g1 === 'box' && !['front', 'side'].includes(state.led.mode)) state.led.mode = 'front';
-    invalidate({ sign: true });
+    invalidate({ signs: 'active' });
   } else {
     setPath(state, path, value);
     if (path === 'wall.width' && state.wall.lockRatio && assets.wallAspect) state.wall.height = +(value / assets.wallAspect).toFixed(2);
@@ -470,9 +611,69 @@ function change(path, value, { rerender = false } = {}) {
     invalidate(routeFlags(path));
     if (path === 'time') $$('#time-seg button').forEach((x) => x.classList.toggle('active', x.dataset.time === value));
   }
+  if (path === 'sign.text' || path === 'sign.type' || path.startsWith('led.') || path === 'sign.front') setTimeout(renderItems, 0);
   if (rerender) renderPanel();
   autosave();
+  commit();
 }
+
+// ---------- kelola signage ----------
+function addItem(kind) {
+  if (state.items.length >= MAX_ITEMS) return;
+  const id = Math.max(...state.items.map((x) => x.id)) + 1;
+  const cur = activeItem();
+  let it;
+  if (kind === 'dup') {
+    it = structuredClone(cur);
+    it.id = id;
+  } else {
+    it = defaultItem(id);
+    Object.assign(it.sign, structuredClone(BOX_PRESET), { type: 'box_rect', text: 'OPEN', width: 140, height: 60, depth: 15, textScale: 75 });
+    it.construction = structuredClone(cur.construction);
+  }
+  const rt = runtime.get(cur.id);
+  const w0 = rt && rt.res ? rt.res.size.w : 2;
+  const w1 = kind === 'dup' ? w0 : 1.4;
+  const info = placementInfo(state);
+  it.pos = { ...cur.pos };
+  const step = info.kind === 'ground' ? Math.max(3.5, w0 / 2 + w1 / 2 + 1.2) : w0 / 2 + w1 / 2 + 0.4;
+  // cari sisi yang masih ada ruang
+  const lim = info.kind === 'wall' ? state.wall.width / 2 - w1 / 2 : info.kind === 'roof' ? (info.x[1] - info.x[0]) / 2 - w1 / 2 - 0.3 : info.x[1];
+  it.pos.x = cur.pos.x + step <= lim ? cur.pos.x + step : cur.pos.x - step;
+  state.items.push(it);
+  state.active = state.items.length - 1;
+  invalidate({ signs: 'active' });
+  onActiveChanged();
+  autosave();
+  commit();
+  toast(kind === 'dup' ? 'Signage diduplikat' : 'Signage baru ditambahkan');
+}
+
+function deleteItem() {
+  if (state.items.length <= 1) return;
+  const it = activeItem();
+  state.items.splice(state.active, 1);
+  state.active = Math.max(0, state.active - 1);
+  engine.removeItem(it.id);
+  runtime.delete(it.id);
+  onActiveChanged();
+  autosave();
+  commit();
+  toast('Signage dihapus — tekan Urungkan untuk mengembalikan');
+}
+
+$('#items').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-item]');
+  if (chip) {
+    state.active = +chip.dataset.item;
+    onActiveChanged();
+    autosave();
+    return;
+  }
+  const act = e.target.closest('[data-item-act]')?.dataset.itemAct;
+  if (act === 'add' || act === 'dup') addItem(act);
+  if (act === 'del') deleteItem();
+});
 
 // klik opsi (kartu, chip, swatch)
 $('#panel-body').addEventListener('click', (e) => {
@@ -495,16 +696,16 @@ $('#panel-body').addEventListener('click', (e) => {
   const act = e.target.closest('[data-action]');
   if (act) {
     if (act.dataset.action === 'center') {
-      const info = placementInfo(state);
-      Object.assign(state.pos, info.defaultPos, { rot: 0 });
+      state.pos = defaultPosFor(state.active, state.items.length);
       invalidate({ mount: true });
       renderPanel();
       engine.cameraPreset('front');
+      commit();
     }
     if (act.dataset.action === 'clear') {
       const key = act.dataset.key;
       setPath(state, key, null);
-      applyAssets().then(() => { invalidate(routeFlags(key)); if (key === 'bg.image') invalidate({ time: true }); renderPanel(); autosave(); });
+      applyAssets().then(() => { invalidate(key === 'bg.image' ? { time: true } : routeFlags(key)); renderPanel(); autosave(); commit(); });
     }
   }
 });
@@ -524,9 +725,7 @@ $('#panel-body').addEventListener('input', (e) => {
   const out = $(`[data-out="${path}"]`);
   if (out) out.textContent = fmt(v, 2) + (el.dataset.unit || '');
   if (path === 'sign.text') { clearTimeout(drawFontPreviews.t); drawFontPreviews.t = setTimeout(drawFontPreviews, 350); }
-  if (el.type === 'color') {
-    $$('.sw', el.closest('.swatches')).forEach((s) => s.classList.remove('active'));
-  }
+  if (el.type === 'color') $$('.sw', el.closest('.swatches')).forEach((s) => s.classList.remove('active'));
 });
 $('#panel-body').addEventListener('change', (e) => {
   const el = e.target;
@@ -584,26 +783,28 @@ async function handleUpload(el) {
     if (key === 'wall.image' && assets.wallAspect) {
       state.wall.lockRatio = true;
       state.wall.height = +(state.wall.width / assets.wallAspect).toFixed(2);
-      state.pos.y = clamp(state.pos.y, 0, state.wall.height);
       engine.cameraPreset('front');
     }
     invalidate(key === 'bg.image' ? { time: true } : routeFlags(key));
     renderPanel();
     if (!store.set('dazpro.current', state)) toast('Gambar terlalu besar untuk disimpan otomatis — gunakan Export .json');
-    toast('Gambar terpasang');
+    else toast('Gambar terpasang');
+    commit();
   } catch (err) {
-    toast('Gagal membaca gambar');
+    toast('Gagal membaca gambar. Coba file JPG atau PNG lain.');
   }
 }
 
 function loadImg(src) {
-  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  if (logoCache.has(src)) return Promise.resolve(logoCache.get(src));
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => { logoCache.set(src, i); res(i); }; i.onerror = rej; i.src = src; });
 }
 
 async function applyAssets() {
-  // logo
-  assets.logo = state.sign.logo ? await loadImg(state.sign.logo).catch(() => null) : null;
-  // tembok
+  assets.logos = new Map();
+  for (const it of state.items) {
+    if (it.sign.logo) { const img = await loadImg(it.sign.logo).catch(() => null); if (img) assets.logos.set(it.id, img); }
+  }
   if (assets.wallTex) { assets.wallTex.dispose(); assets.wallTex = null; }
   assets.wallAspect = null;
   if (state.wall.image) {
@@ -614,7 +815,6 @@ async function applyAssets() {
       assets.wallTex = t; assets.wallAspect = img.width / img.height;
     }
   }
-  // latar
   if (assets.bgTex) { assets.bgTex.dispose(); assets.bgTex = null; }
   if (state.bg.image) {
     const img = await loadImg(state.bg.image).catch(() => null);
@@ -634,13 +834,17 @@ function renderViewportUI() {
   $('#cams').innerHTML = cams.map(([id, n]) => `<button data-cam="${id}">${ICONS[id]}<span>${n}</span></button>`).join('') + `<button class="walk" data-cam="walk">${ICONS.walk}<span>Jalan 3D</span></button>`;
   $('#btn-shot').innerHTML = ICONS.camera;
   $('#btn-full').innerHTML = ICONS.expand;
+  $('#btn-undo').innerHTML = ICONS.undo;
+  $('#btn-redo').innerHTML = ICONS.redo;
+  $('#btn-dims').innerHTML = ICONS.ruler;
+  $('#btn-dims').classList.toggle('on', !!state.showDims);
+  updateHistoryButtons();
 }
 
 $('#time-seg').addEventListener('click', (e) => {
   const b = e.target.closest('[data-time]');
   if (!b) return;
   change('time', b.dataset.time);
-  $$('#time-seg button').forEach((x) => x.classList.toggle('active', x === b));
   if (tab === 'lampu') renderPanel();
 });
 
@@ -657,23 +861,20 @@ $('#walk-exit').addEventListener('click', () => engine.exitWalk());
 $('#walk-view').addEventListener('click', () => engine.toggleWalkView());
 $('#walk-run').addEventListener('click', (e) => { const on = !engine.walk.sprint; engine.setSprint(on); e.currentTarget.classList.toggle('on', on); });
 
-// joystick
-(() => {
-  const joy = $('#joy'), knob = $('#joy-knob');
-  let id = null;
-  const move = (e) => {
-    const r = joy.getBoundingClientRect();
-    let x = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
-    let y = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
-    const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
-    knob.style.transform = `translate(${x * 34}px, ${y * 34}px)`;
-    engine.setJoystick(x, -y);
-  };
-  joy.addEventListener('pointerdown', (e) => { id = e.pointerId; joy.setPointerCapture(id); move(e); });
-  joy.addEventListener('pointermove', (e) => { if (e.pointerId === id) move(e); });
-  const end = () => { id = null; knob.style.transform = ''; engine.setJoystick(0, 0); };
-  joy.addEventListener('pointerup', end); joy.addEventListener('pointercancel', end);
-})();
+$('#btn-undo').addEventListener('click', () => travel(-1));
+$('#btn-redo').addEventListener('click', () => travel(1));
+$('#btn-dims').addEventListener('click', () => {
+  change('showDims', !state.showDims);
+  $('#btn-dims').classList.toggle('on', state.showDims);
+  toast(state.showDims ? 'Garis ukuran ditampilkan' : 'Garis ukuran disembunyikan');
+});
+window.addEventListener('keydown', (e) => {
+  if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); travel(e.shiftKey ? 1 : -1); }
+  else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); travel(1); }
+  else if (e.key === 'Delete' && engine.mode === 'orbit' && state.items.length > 1 && document.activeElement === document.body) { deleteItem(); }
+});
 
 $('#btn-full').addEventListener('click', () => {
   const el = viewport;
@@ -687,7 +888,7 @@ function download(url, name) {
   a.href = url; a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
 }
-const slug = () => (state.sign.text.split('\n')[0] || 'signage').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'signage';
+const slug = () => (itemName(state.items[0]) || 'signage').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'signage';
 
 $('#btn-shot').addEventListener('click', () => { download(engine.screenshot(), `dazpro-${slug()}.png`); toast('Gambar disimpan'); });
 
@@ -697,43 +898,76 @@ $$('.drawer').forEach((d) => d.addEventListener('click', (e) => { if (e.target =
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') $$('.drawer').forEach((d) => (d.hidden = true)); });
 
 function linesTable() {
-  return `<table class="lines">${pricing.lines.map((l) => `<tr><td>${esc(l.label)}${l.detail ? `<small>${esc(l.detail)}</small>` : ''}</td><td>${formatRp(l.amount)}</td></tr>`).join('')}
-    <tr class="total"><td>Total estimasi</td><td>${formatRp(pricing.total)}</td></tr></table>
-    <p class="muted small">Estimasi kasar berdasarkan ukuran, bahan, LED, dan lokasi. Harga final dikonfirmasi setelah survei lokasi.</p>`;
+  let group = null;
+  const rows = pricing.lines.map((l) => {
+    let head = '';
+    if (l.group && l.group !== group) { group = l.group; head = `<tr class="grp"><td colspan="2">${esc(l.group)}</td></tr>`; }
+    return `${head}<tr><td>${esc(l.label)}${l.detail ? `<small>${esc(l.detail)}</small>` : ''}</td><td>${formatRp(l.amount)}</td></tr>`;
+  }).join('');
+  return `<table class="lines">${rows}<tr class="total"><td>Total estimasi</td><td>${formatRp(pricing.total)}</td></tr></table>
+    <p class="muted small">Estimasi kasar berdasarkan ukuran, bahan, LED, dan lokasi. Harga final dikonfirmasi setelah survei lokasi.</p>
+    <div class="drawer-actions"><button class="btn btn-ghost btn-sm" data-open-quote>Cetak penawaran (PDF)</button></div>`;
 }
 $('#sum-total').addEventListener('click', () => { $('#drawer-body').innerHTML = linesTable(); openModal('#drawer'); });
+$('#drawer-body').addEventListener('click', (e) => { if (e.target.closest('[data-open-quote]')) { $('#drawer').hidden = true; openSubmit(); } });
 
-// ---------- pengajuan ----------
+// ---------- spesifikasi teks ----------
+const matName = (id) => (MATERIALS.find((m) => m.id === id) || {}).name;
+function itemSpecs(it) {
+  const S = it.sign, L = it.led;
+  const rt = runtime.get(it.id);
+  const size = rt && rt.res ? rt.res.size : { w: 0, h: 0, d: 0 };
+  const type = SIGN_TYPES.find((t) => t.id === S.type);
+  const isBox = type.group === 'box';
+  const rows = [
+    ['Model', type.name],
+    ['Teks', S.text.replace(/\n/g, ' / ') || '—'],
+    ['Font', (fontIndex.find((f) => f.id === S.font) || {}).name || S.font],
+    ['Ukuran jadi', `${fmt(size.w)} × ${fmt(size.h)} m, tebal ${fmt(size.d * 100, 0)} cm`],
+    isBox ? ['Dimensi box', `${S.width} × ${S.type === 'box_rect' ? S.height : S.width} × ${S.depth} cm`] : ['Tinggi huruf', `${S.letterHeight} cm, return ${S.letterDepth} cm`],
+    ['Bahan depan', `${matName(S.front.mat)} · ${S.front.color}`],
+    ['Bahan samping', `${matName(S.side.mat)} · ${S.side.color}`],
+  ];
+  if (!isBox && S.backPanel.on) rows.push(['Panel latar', `ACP ${S.backPanel.color}, tepi ${S.backPanel.padding} cm`]);
+  if (isBox) rows.push(['Warna teks', S.textColor]);
+  if (type.lit) {
+    rows.push(['LED', L.on ? `${LED_COLORS.find((c) => c.hex === L.color)?.name || L.color} · ${LED_MODES.find((m) => m.id === (rt?.res?.effectiveMode || L.mode))?.name} · ${LED_EFFECTS.find((x) => x.id === L.effect)?.name} · ${rt?.res?.ledCount || 0} modul` : 'Mati']);
+  }
+  if ((state.placement === 'rooftop' || state.placement === 'cafe')) rows.push(['Konstruksi', it.construction.on ? `Rangka besi hollow, kaki ${it.construction.height} cm` : 'Tanpa rangka']);
+  if (state.placement === 'pole') rows.push(['Tiang', `${fmt(state.env.poleHeight)} m sampai bawah signage`]);
+  if (state.placement === 'totem') rows.push(['Totem', `tinggi ${fmt(rt?.m?.totemH || state.env.totemHeight)} m`]);
+  return rows;
+}
+
+// ---------- pengajuan & penawaran ----------
 let lastShot = '';
-$('#btn-submit').addEventListener('click', () => {
+function openSubmit() {
   lastShot = engine.screenshot();
   $('#submit-preview').src = lastShot;
   openModal('#submit-modal');
-});
+}
+$('#btn-submit').addEventListener('click', openSubmit);
+
 $('#submit-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const S = state.sign;
-  const type = SIGN_TYPES.find((t) => t.id === S.type);
   const pl = PLACEMENTS.find((p) => p.id === state.placement);
-  const mat = (id) => (MATERIALS.find((m) => m.id === id) || {}).name;
-  const size = signRes.size;
+  const blocks = state.items.map((it, i) => [
+    state.items.length > 1 ? `*Signage ${i + 1}: ${itemName(it, i)}*` : null,
+    ...itemSpecs(it).map(([k, v]) => `• ${k}: ${v}`),
+  ].filter(Boolean).join('\n'));
   const msg = [
     `Halo ${BRAND.name}, saya ingin penawaran signage:`,
     '',
     `Nama: ${fd.get('name')}`,
     fd.get('biz') ? `Usaha: ${fd.get('biz')}` : null,
     fd.get('city') ? `Lokasi: ${fd.get('city')}` : null,
+    `Penempatan: ${pl.name}`,
     '',
-    `• Model: ${type.name}`,
-    `• Teks: "${S.text.replace(/\n/g, ' / ')}" (font ${(fontIndex.find((f) => f.id === S.font) || {}).name})`,
-    `• Ukuran jadi: ${fmt(size.w)} × ${fmt(size.h)} m, tebal ${fmt(size.d * 100, 0)} cm`,
-    `• Bahan depan: ${mat(S.front.mat)} ${S.front.color} · samping: ${mat(S.side.mat)} ${S.side.color}`,
-    type.lit ? `• LED: ${state.led.on ? `${LED_COLORS.find((c) => c.hex === state.led.color)?.name || state.led.color}, mode ${LED_MODES.find((m) => m.id === state.led.mode)?.name}, efek ${LED_EFFECTS.find((x) => x.id === state.led.effect)?.name}, ${signRes.ledCount} modul` : 'mati'}` : null,
-    `• Penempatan: ${pl.name}${(state.placement === 'rooftop' || state.placement === 'cafe') && state.construction.on ? ` + rangka besi ${state.construction.height} cm` : ''}`,
+    blocks.join('\n\n'),
     '',
     'Rincian estimasi:',
-    ...pricing.lines.map((l) => `- ${l.label}: ${formatRp(l.amount)}`),
+    ...pricing.lines.map((l) => `- ${l.group ? l.group + ' · ' : ''}${l.label}: ${formatRp(l.amount)}`),
     `Total estimasi: ${formatRp(pricing.total)}`,
     fd.get('note') ? `\nCatatan: ${fd.get('note')}` : null,
     '\n(Gambar desain 3D saya lampirkan.)',
@@ -744,15 +978,97 @@ $('#submit-form').addEventListener('submit', (e) => {
   toast('Membuka WhatsApp…');
 });
 
+$('#btn-quote').addEventListener('click', async () => {
+  const fd = new FormData($('#submit-form'));
+  const btn = $('#btn-quote');
+  btn.disabled = true; btn.textContent = 'Menyiapkan…';
+  try {
+    const shots = state.items.map((it) => {
+      const m = runtime.get(it.id)?.m;
+      return m ? engine.captureView(m.center, m.size, m.rot, 'front', 900, 560) : '';
+    });
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const no = `DZP-${String(now.getFullYear()).slice(2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+    const until = new Date(now.getTime() + 14 * 864e5);
+    const dfmt = (d) => d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    $('#quote').innerHTML = buildQuote({
+      brand: BRAND, no, date: dfmt(now), until: dfmt(until),
+      customer: { name: fd.get('name'), biz: fd.get('biz'), city: fd.get('city'), note: fd.get('note') },
+      placement: PLACEMENTS.find((p) => p.id === state.placement).name,
+      time: TIMES.find((t) => t.id === state.time).name,
+      overview: lastShot || engine.screenshot(),
+      items: state.items.map((it, i) => ({ name: itemName(it, i), shot: shots[i], specs: itemSpecs(it) })),
+      lines: pricing.lines, total: pricing.total, formatRp,
+    });
+    await Promise.all($$('#quote img').map((im) => (im.complete ? 0 : new Promise((r) => { im.onload = im.onerror = r; }))));
+    $('#submit-modal').hidden = true;
+    const prevTitle = document.title;
+    document.title = `Penawaran ${no}`;
+    window.print();
+    setTimeout(() => (document.title = prevTitle), 1000);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Cetak penawaran (PDF)';
+  }
+});
+
+// ---------- bagikan link ----------
+const b64url = (bytes) => {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+const unb64url = (str) => {
+  const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+};
+async function encodeDesign() {
+  const json = JSON.stringify(state, (k, v) => (typeof v === 'string' && v.startsWith('data:') ? null : v));
+  let bytes = new TextEncoder().encode(json);
+  if (window.CompressionStream) {
+    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    return 'z' + b64url(new Uint8Array(await new Response(stream).arrayBuffer()));
+  }
+  return 'j' + b64url(bytes);
+}
+async function decodeDesign(code) {
+  let bytes = unb64url(code.slice(1));
+  if (code[0] === 'z') {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+async function openShare() {
+  const code = await encodeDesign();
+  const url = `${location.origin}${location.pathname}#d=${code}`;
+  $('#share-url').value = url;
+  const hasImg = state.wall.image || state.bg.image || state.items.some((it) => it.sign.logo);
+  $('#share-note').hidden = !hasImg;
+  openModal('#share-modal');
+  $('#share-url').select();
+}
+$('#share-copy').addEventListener('click', async () => {
+  const inp = $('#share-url');
+  try { await navigator.clipboard.writeText(inp.value); toast('Link disalin'); } catch (_) { inp.select(); toast('Tekan Ctrl+C untuk menyalin'); }
+});
+$('#share-wa').addEventListener('click', () => {
+  window.open(`https://wa.me/?text=${encodeURIComponent('Desain signage saya di DAZPRO Signage Studio: ' + $('#share-url').value)}`, '_blank', 'noopener');
+});
+
 // ---------- menu proyek ----------
 $('#btn-project').addEventListener('click', (e) => { e.stopPropagation(); $('#project-menu').hidden = !$('#project-menu').hidden; });
 document.addEventListener('click', () => ($('#project-menu').hidden = true));
 $('#project-menu').addEventListener('click', (e) => {
   const act = e.target.closest('[data-act]')?.dataset.act;
   if (!act) return;
+  if (act === 'share') openShare();
+  if (act === 'quote') openSubmit();
   if (act === 'save') {
     const list = store.get('dazpro.projects', []);
-    const name = (state.sign.text.split('\n')[0] || 'Desain') + ' — ' + PLACEMENTS.find((p) => p.id === state.placement).name;
+    const name = (state.items.length > 1 ? `${state.items.length} signage` : itemName(activeItem())) + ' — ' + PLACEMENTS.find((p) => p.id === state.placement).name;
     const c = document.createElement('canvas'); c.width = 240; c.height = 135;
     const img = new Image();
     img.onload = () => {
@@ -765,7 +1081,7 @@ $('#project-menu').addEventListener('click', (e) => {
   }
   if (act === 'load') {
     const list = store.get('dazpro.projects', []);
-    $('#load-list').innerHTML = list.length ? list.map((p, i) => `<div class="load-item"><img src="${p.thumb}" width="96" height="54" style="border-radius:8px;object-fit:cover" alt="" /><div style="flex:1"><b>${esc(p.name)}</b><small>${esc(p.date)}</small></div><button class="btn btn-sm btn-ghost" data-load="${i}">Buka</button><button class="btn btn-sm btn-ghost" data-del="${i}">Hapus</button></div>`).join('') : '<p class="muted">Belum ada simpanan.</p>';
+    $('#load-list').innerHTML = list.length ? list.map((p, i) => `<div class="load-item"><img src="${p.thumb}" width="96" height="54" style="border-radius:8px;object-fit:cover" alt="" /><div style="flex:1;min-width:0"><b>${esc(p.name)}</b><small>${esc(p.date)}</small></div><button class="btn btn-sm btn-ghost" data-load="${i}">Buka</button><button class="btn btn-sm btn-ghost" data-del="${i}">Hapus</button></div>`).join('') : '<p class="muted">Belum ada simpanan.</p>';
     openModal('#load-modal');
   }
   if (act === 'export') {
@@ -773,7 +1089,7 @@ $('#project-menu').addEventListener('click', (e) => {
     download(URL.createObjectURL(blob), `dazpro-${slug()}.json`);
   }
   if (act === 'import') $('#file-json').click();
-  if (act === 'reset' && confirm('Mulai desain baru? Perubahan yang belum disimpan akan hilang.')) loadState(defaultState());
+  if (act === 'reset') { loadState(defaultState()); toast('Desain baru dimulai — tekan Urungkan untuk kembali'); }
 });
 $('#load-list').addEventListener('click', (e) => {
   const list = store.get('dazpro.projects', []);
@@ -784,18 +1100,28 @@ $('#load-list').addEventListener('click', (e) => {
 $('#file-json').addEventListener('change', async (e) => {
   const f = e.target.files[0];
   if (!f) return;
-  try { loadState(JSON.parse(await f.text())); toast('Proyek dimuat'); } catch (_) { toast('File tidak valid'); }
+  try { await loadState(JSON.parse(await f.text())); toast('Proyek dimuat'); } catch (_) { toast('File tidak valid — pilih file .json hasil Export'); }
   e.target.value = '';
 });
 
-async function loadState(s) {
-  state = deepMerge(defaultState(), s);
+/** Ganti seluruh desain (tanpa mencatat riwayat). */
+async function restore(raw) {
+  const placementChanged = raw.placement !== state.placement;
+  state = normalize(raw);
   await applyAssets();
-  mount.ready = false;
+  if (placementChanged) ready = false;
   renderViewportUI();
+  renderItems();
   renderPanel();
-  invalidate({ time: true, hero: true, sign: true });
+  invalidate({ time: true, hero: true, signs: 'all' });
   autosave();
+}
+async function loadState(raw) {
+  clearTimeout(commitT);
+  pushHistory();
+  ready = false;
+  await restore(raw);
+  pushHistory();
 }
 
 // ---------- toast ----------
@@ -803,7 +1129,7 @@ let toastT = 0;
 function toast(msg) {
   const t = $('#toast');
   t.textContent = msg; t.hidden = false;
-  clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 2400);
+  clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 2600);
 }
 
 // ---------- start ----------
@@ -811,13 +1137,22 @@ function toast(msg) {
   const wa = `https://wa.me/${BRAND.whatsapp}?text=${encodeURIComponent('Halo DAZPRO, saya ingin konsultasi signage.')}`;
   $('#wa-top').href = wa;
   $('#foot-info').textContent = `Konsultasi ${BRAND.hours} · ${BRAND.area}`;
+  let fromLink = false;
+  const m = location.hash.match(/^#d=([A-Za-z0-9_-]+)$/);
+  if (m) {
+    try { state = normalize(await decodeDesign(m[1])); fromLink = true; } catch (_) { /* link rusak: pakai simpanan */ }
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (_) { /* abaikan */ }
+  }
   try { fontIndex = await loadFontIndex(); } catch (_) { fontIndex = [{ id: 'poppins', name: 'Poppins Bold', cat: 'Modern' }]; }
-  if (!fontIndex.find((f) => f.id === state.sign.font)) state.sign.font = fontIndex[0].id;
+  for (const it of state.items) if (!fontIndex.find((f) => f.id === it.sign.font)) it.sign.font = fontIndex[0].id;
   const ctx = { windowMats: [], lampMats: [], lampLights: [] };
   engine.setCity(buildCity(ctx), ctx);
   await applyAssets();
   renderViewportUI();
+  renderItems();
   renderPanel();
-  invalidate({ time: true, hero: true, sign: true });
-  window.__dazpro = { engine, get state() { return state; }, change, get pricing() { return pricing; } };
+  invalidate({ time: true, hero: true, signs: 'all' });
+  pushHistory();
+  if (fromLink) { toast('Desain dari link dibuka'); autosave(); }
+  window.__dazpro = { engine, get state() { return state; }, change, addItem, deleteItem, travel, openShare, get pricing() { return pricing; }, get history() { return hist; } };
 })();

@@ -115,14 +115,12 @@ export const BG_PRESETS = [
   { id: 'image', name: 'Foto upload' },
 ];
 
-export function defaultState() {
+export const MAX_ITEMS = 6;
+
+/** Satu signage dalam desain. */
+export function defaultItem(id = 1) {
   return {
-    v: 1,
-    placement: 'cafe',
-    time: 'dusk',
-    bg: { mode: 'sky', color: '#dfe4ea', image: null },
-    wall: { image: null, width: 9, height: 5, color: '#d9d4cc', lockRatio: true },
-    env: { floors: 4, poleHeight: 5.5, totemHeight: 6, structColor: '#2a2f37', showCity: true },
+    id,
     sign: {
       type: 'letters_lit',
       text: 'DAZPRO',
@@ -140,6 +138,20 @@ export function defaultState() {
     },
     led: { on: true, color: '#eef4ff', brightness: 75, mode: 'front', effect: 'static', density: 'standard', xray: false },
     construction: { on: true, height: 60, color: '#2a2f37' },
-    pos: { x: 0, y: 2.2, z: -1.2, rot: 0 },
+    pos: { x: 0, y: 2.2, z: -0.8, rot: 0 },
+  };
+}
+
+export function defaultState() {
+  return {
+    v: 2,
+    placement: 'cafe',
+    time: 'dusk',
+    showDims: false,
+    bg: { mode: 'sky', color: '#dfe4ea', image: null },
+    wall: { image: null, width: 9, height: 5, color: '#d9d4cc', lockRatio: true },
+    env: { floors: 4, poleHeight: 5.5, totemHeight: 6, structColor: '#2a2f37', showCity: true },
+    items: [defaultItem(1)],
+    active: 0,
   };
 }

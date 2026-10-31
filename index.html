@@ -44,6 +44,7 @@
     <section class="studio" id="studio">
       <aside class="panel" id="panel">
         <div class="panel-head">
+          <div class="items" id="items"></div>
           <div class="steps" id="tabs" role="tablist"></div>
         </div>
         <div class="panel-body" id="panel-body"></div>
@@ -61,11 +62,14 @@
           <div class="vp-cams" id="cams"></div>
 
           <div class="vp-tools">
+            <button class="icon-btn" id="btn-undo" title="Urungkan (Ctrl+Z)" aria-label="Urungkan"></button>
+            <button class="icon-btn" id="btn-redo" title="Ulangi (Ctrl+Y)" aria-label="Ulangi"></button>
+            <button class="icon-btn" id="btn-dims" title="Tampilkan garis ukuran" aria-label="Garis ukuran"></button>
             <button class="icon-btn" id="btn-shot" title="Simpan gambar (PNG)" aria-label="Simpan gambar"></button>
             <button class="icon-btn" id="btn-full" title="Layar penuh" aria-label="Layar penuh"></button>
           </div>
 
-          <div class="vp-hint" id="vp-hint">Seret untuk memutar · klik-kanan / dua jari untuk geser · scroll untuk zoom · <b>seret signage</b> untuk memindah</div>
+          <div class="vp-hint" id="vp-hint">Seret untuk memutar · klik-kanan / dua jari untuk geser · scroll untuk zoom · <b>klik &amp; seret signage</b> untuk memilih/memindah</div>
           <div class="vp-spec" id="vp-spec"></div>
           <div class="vp-warn" id="vp-warn" hidden></div>
 
@@ -93,6 +97,9 @@
             <div class="menu-wrap">
               <button class="btn btn-ghost-dark" id="btn-project">Proyek</button>
               <div class="menu" id="project-menu" hidden>
+                <button data-act="share">Bagikan link desain</button>
+                <button data-act="quote">Cetak penawaran (PDF)</button>
+                <hr />
                 <button data-act="save">Simpan di perangkat</button>
                 <button data-act="load">Buka simpanan…</button>
                 <button data-act="export">Export .json</button>
@@ -148,7 +155,10 @@
         <label>Kota / lokasi pemasangan<input name="city" placeholder="Contoh: Surabaya" /></label>
         <label>Catatan<textarea name="note" rows="3" placeholder="Tinggi gedung, akses listrik, deadline, dll."></textarea></label>
         <p class="muted small">Gambar desain akan diunduh otomatis — lampirkan di chat WhatsApp agar tim kami bisa melihatnya.</p>
-        <button class="btn btn-primary btn-block" type="submit">Kirim via WhatsApp</button>
+        <div class="form-actions">
+          <button class="btn btn-ghost" type="button" id="btn-quote">Cetak penawaran (PDF)</button>
+          <button class="btn btn-primary" type="submit">Kirim via WhatsApp</button>
+        </div>
       </form>
     </div>
   </div>
@@ -160,6 +170,17 @@
     </div>
   </div>
 
+  <div class="drawer" id="share-modal" hidden>
+    <div class="drawer-card">
+      <div class="drawer-head"><h3>Bagikan link desain</h3><button class="icon-btn" data-close aria-label="Tutup">✕</button></div>
+      <p class="muted small">Siapa pun yang membuka link ini akan melihat desain yang sama dan bisa mengubahnya tanpa mengubah milik Anda.</p>
+      <div class="share-row"><input id="share-url" class="input" readonly /><button class="btn btn-primary btn-sm" id="share-copy">Salin</button></div>
+      <p class="note" id="share-note" hidden>Foto tembok, foto latar, dan logo tidak ikut di link. Kirim file gambarnya terpisah, atau gunakan Export .json.</p>
+      <button class="btn btn-ghost btn-sm" id="share-wa" style="margin-top:12px">Kirim link lewat WhatsApp</button>
+    </div>
+  </div>
+
+  <div id="quote" aria-hidden="true"></div>
   <input type="file" id="file-json" accept=".json,application/json" hidden />
   <div class="toast" id="toast" hidden></div>
 
