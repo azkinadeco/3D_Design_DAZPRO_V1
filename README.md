@@ -1,4 +1,4 @@
-# DAZPRO Signage Studio 3D (V1)
+# DAZPRO Signage Studio 3D
 
 Konfigurator 3D interaktif untuk bisnis **neon box, huruf timbul & signage advertising**.
 Pelanggan merancang signage, melihatnya di lokasi pemasangan dalam 3D, melihat estimasi biaya, lalu mengajukan desain via WhatsApp.
@@ -27,6 +27,11 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Penawaran PDF** | Dokumen A4: nomor & tanggal penawaran, data pelanggan, visual 3D, tampak depan tiap signage, tabel spesifikasi, rincian biaya, ketentuan → Simpan sebagai PDF dari dialog cetak |
 | **Ajukan** | Rincian estimasi (dikelompokkan per signage), simpan PNG, kirim ringkasan + estimasi ke WhatsApp |
 | **Proyek** | Simpan di perangkat, buka simpanan, export/import `.json`, autosave |
+| **Template** | 6 desain siap pakai (kafe, butik, klinik, gedung kantor, barbershop, night bar) — sekali klik lalu ubah teksnya |
+| **Jarak baca** | Perkiraan jarak nyaman & maksimal tulisan terbaca, dari tinggi huruf |
+| **Tampilan** | Panel edit bisa disembunyikan (tombol / tombol `P`), layar penuh (juga di iPhone), putar otomatis untuk presentasi |
+| **Database** | Setiap pengajuan tersimpan di Firebase Firestore (koleksi `pengajuan`) |
+| **Admin** | `/admin.html` — login Google, statistik, filter status, cari, detail, catatan internal, chat WhatsApp dengan pesan siap kirim, buka desain di studio, export CSV |
 
 ## Struktur
 
@@ -43,6 +48,11 @@ js/materials.js       material acrylic/stainless/gold/ACP/mirror
 js/pricing.js         rumus estimasi biaya
 js/dims.js            garis ukuran 3D
 js/quote.js           dokumen penawaran (cetak/PDF)
+js/templates.js       template desain siap pakai
+js/firebase.js        Firestore + login Google (dimuat dari CDN Google saat dibutuhkan)
+js/admin.js           halaman admin pengajuan
+admin.html            halaman admin
+firestore.rules       aturan keamanan Firestore (salin ke Firebase → Firestore → Rules)
 fonts/*.json          data glyph font (dibuat oleh tools/build_fonts.py), lisensi di fonts/licenses
 vendor/three/         Three.js r169 + addons (tanpa CDN)
 ```
@@ -73,7 +83,14 @@ python3 -m http.server 8080
 
 Simpanan V1 (satu signage) otomatis dimigrasikan ke format multi-signage.
 
+## Firebase
+
+1. Konfigurasi web ada di `FIREBASE_CONFIG` (`js/config.js`).
+2. Firestore Database dibuat (Production mode), Authentication → Google diaktifkan.
+3. Isi `firestore.rules` ditempel di Firestore → Rules → Publish. Email admin ada di fungsi `isAdmin()`.
+4. Domain situs (mis. `nama.vercel.app`) ditambahkan di Authentication → Settings → **Authorized domains** — tanpa ini login admin gagal (`auth/unauthorized-domain`).
+
 ## Rencana berikutnya
 
-- Panel admin + database pengajuan (seperti `/admin` di project dekorasi) — butuh layanan database (mis. Vercel Postgres/KV).
 - Model tambahan (neon flex, papan nama 2 sisi, billboard).
+- Notifikasi email/WhatsApp otomatis ke admin saat ada pengajuan baru.

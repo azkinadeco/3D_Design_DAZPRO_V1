@@ -26,6 +26,12 @@ export const ICONS = {
   undo: s('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>'),
   redo: s('<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/>'),
   ruler: s('<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>'),
+  sidebar: s('<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/>'),
+  sidebarOff: s('<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16M14 10l2 2-2 2"/>'),
+  spin: s('<path d="M20 12a8 8 0 01-14.9 4M4 12a8 8 0 0114.9-4"/><path d="M19 3v5h-5M5 21v-5h5"/>'),
+  shrink: s('<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>'),
+  grid: s('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'),
+  eye: s('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
   upload: s('<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'),
   // ilustrasi kartu lokasi
   rooftop: big('<rect x="18" y="12" width="28" height="23" rx="1"/><path d="M22 17h4M30 17h4M38 17h4M22 22h4M30 22h4M38 22h4M22 27h4M30 27h4M38 27h4"/><path d="M24 12V9M40 12V9M24 9l16 0"/><rect x="21" y="2" width="22" height="7" rx="1" stroke="#2f5bff"/>'),

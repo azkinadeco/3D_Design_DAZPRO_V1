@@ -1,16 +1,21 @@
 body.admin{background:var(--bg)}
 .adm{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
-.login{max-width:420px;margin:60px auto;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px;text-align:center}
-.login h1{margin:0 0 6px;font-size:22px}
-.login .btn{margin-top:14px}
+.login{max-width:420px;margin:56px auto;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:32px 28px;text-align:center;box-shadow:var(--shadow)}
+.login h1{margin:14px 0 6px;font-size:22px;letter-spacing:-.02em}
+.login .btn{margin-top:18px}
+.login-mark{width:48px;height:48px;border-radius:14px;background:var(--ink);display:inline-grid;place-items:center}
+.login-mark svg{width:26px;height:26px;fill:none;stroke:#6f95ff;stroke-width:3.2;filter:drop-shadow(0 0 4px #5b8cff)}
+.login-err{margin-top:16px;text-align:left;font-size:13px;line-height:1.55;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:12px;padding:12px 14px}
+.login-err code{background:#fff;border:1px solid #fecaca;border-radius:6px;padding:1px 6px;font-size:12px}
+.login .note{text-align:left;margin-top:14px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
-.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
 .stat b{display:block;font-size:22px;letter-spacing:-.02em}
 .stat span{font-size:12px;color:var(--muted)}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .toolbar .input{flex:1;min-width:180px}
 .list{display:grid;gap:10px}
-.card-sub{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit}
+.card-sub{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px;cursor:pointer;text-align:left;width:100%;font:inherit;color:inherit}
 .card-sub:hover{border-color:var(--accent)}
 .card-sub img{width:120px;height:76px;object-fit:cover;border-radius:8px;background:#0f172a}
 .card-sub .t{font-weight:700}

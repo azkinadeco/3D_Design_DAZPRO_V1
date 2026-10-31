@@ -38,13 +38,22 @@
         <p class="eyebrow"><span class="dot"></span> Konfigurator signage 3D</p>
         <h1>Lihat signage usaha Anda <span class="muted">sebelum dipasang.</span></h1>
       </div>
-      <p class="hero-sub">Pilih lokasi, model, font, bahan, dan lampu LED. Seret signage ke posisi yang pas, cek tampilan siang–malam, lalu kirim desainnya untuk penawaran harga.</p>
+      <div class="hero-side">
+        <p class="hero-sub">Pilih lokasi, model, font, bahan, dan lampu LED. Cek tampilan siang–malam, lalu kirim desainnya untuk penawaran.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#studio">Mulai desain</a>
+          <button class="btn btn-ghost" data-open-templates>Pakai template</button>
+        </div>
+      </div>
     </section>
 
     <section class="studio" id="studio">
       <aside class="panel" id="panel">
         <div class="panel-head">
-          <div class="items" id="items"></div>
+          <div class="panel-top">
+            <div class="items" id="items"></div>
+            <button class="btn btn-sm btn-soft" id="btn-templates" title="Pilih template desain siap pakai"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Template</button>
+          </div>
           <div class="steps" id="tabs" role="tablist"></div>
         </div>
         <div class="panel-body" id="panel-body"></div>
@@ -55,26 +64,35 @@
           <div class="loader" id="loader"><div class="spinner"></div><span>Menyiapkan studio 3D…</span></div>
 
           <div class="vp-top">
-            <div class="vp-chip live"><span class="pulse"></span><span id="vp-title">Live preview</span></div>
+            <div class="vp-left">
+              <button class="icon-btn glass" id="panel-toggle" title="Sembunyikan / tampilkan panel edit" aria-label="Panel edit"></button>
+              <div class="vp-chip"><span class="pulse"></span><span id="vp-title">Live preview</span></div>
+            </div>
             <div class="seg" id="time-seg"></div>
           </div>
 
-          <div class="vp-cams" id="cams"></div>
-
           <div class="vp-tools">
-            <button class="icon-btn" id="btn-undo" title="Urungkan (Ctrl+Z)" aria-label="Urungkan"></button>
-            <button class="icon-btn" id="btn-redo" title="Ulangi (Ctrl+Y)" aria-label="Ulangi"></button>
-            <button class="icon-btn" id="btn-dims" title="Tampilkan garis ukuran" aria-label="Garis ukuran"></button>
-            <button class="icon-btn" id="btn-shot" title="Simpan gambar (PNG)" aria-label="Simpan gambar"></button>
-            <button class="icon-btn" id="btn-full" title="Layar penuh" aria-label="Layar penuh"></button>
+            <div class="tool-group">
+              <button class="icon-btn" id="btn-undo" title="Urungkan (Ctrl+Z)" aria-label="Urungkan"></button>
+              <button class="icon-btn" id="btn-redo" title="Ulangi (Ctrl+Y)" aria-label="Ulangi"></button>
+            </div>
+            <div class="tool-group">
+              <button class="icon-btn" id="btn-dims" title="Garis ukuran" aria-label="Garis ukuran"></button>
+              <button class="icon-btn" id="btn-spin" title="Putar otomatis (presentasi)" aria-label="Putar otomatis"></button>
+              <button class="icon-btn" id="btn-shot" title="Simpan gambar (PNG)" aria-label="Simpan gambar"></button>
+              <button class="icon-btn" id="btn-full" title="Layar penuh" aria-label="Layar penuh"></button>
+            </div>
           </div>
 
-          <div class="vp-hint" id="vp-hint">Seret untuk memutar · klik-kanan / dua jari untuk geser · scroll untuk zoom · <b>klik &amp; seret signage</b> untuk memilih/memindah</div>
+          <div class="vp-bottom">
+            <div class="vp-hint" id="vp-hint">Seret untuk memutar · scroll untuk zoom · <b>klik &amp; seret signage</b> untuk memindah</div>
+            <div class="vp-cams" id="cams"></div>
+          </div>
           <div class="vp-spec" id="vp-spec"></div>
           <div class="vp-warn" id="vp-warn" hidden></div>
 
           <div class="walk-ui" id="walk-ui" hidden>
-            <div class="walk-help">WASD / panah untuk jalan · Shift lari · seret untuk menoleh · V ganti sudut · Esc keluar</div>
+            <div class="walk-help">WASD jalan · seret layar untuk menoleh · Shift lari · V ganti sudut · Esc keluar</div>
             <div class="joy" id="joy"><div class="joy-knob" id="joy-knob"></div></div>
             <div class="walk-btns">
               <button class="btn btn-sm btn-dark" id="walk-view">Orang pertama</button>
@@ -95,7 +113,7 @@
           </button>
           <div class="sum-actions">
             <div class="menu-wrap">
-              <button class="btn btn-ghost-dark" id="btn-project">Proyek</button>
+              <button class="btn btn-ghost" id="btn-project">Proyek</button>
               <div class="menu" id="project-menu" hidden>
                 <button data-act="share">Bagikan link desain</button>
                 <button data-act="quote">Cetak penawaran (PDF)</button>
@@ -178,6 +196,13 @@
       <div class="share-row"><input id="share-url" class="input" readonly /><button class="btn btn-primary btn-sm" id="share-copy">Salin</button></div>
       <p class="note" id="share-note" hidden>Foto tembok, foto latar, dan logo tidak ikut di link. Kirim file gambarnya terpisah, atau gunakan Export .json.</p>
       <button class="btn btn-ghost btn-sm" id="share-wa" style="margin-top:12px">Kirim link lewat WhatsApp</button>
+    </div>
+  </div>
+
+  <div class="drawer" id="tpl-modal" hidden>
+    <div class="drawer-card wide">
+      <div class="drawer-head"><div><h3>Template desain</h3><p class="muted small" style="margin:2px 0 0">Mulai cepat dari contoh, lalu ubah teks, warna, dan ukurannya.</p></div><button class="icon-btn" data-close aria-label="Tutup">✕</button></div>
+      <div class="tpl-grid" id="tpl-grid"></div>
     </div>
   </div>
 

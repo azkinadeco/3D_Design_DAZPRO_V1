@@ -10,6 +10,7 @@ import { computePrice, formatRp } from './pricing.js';
 import { ICONS } from './icons.js';
 import { buildQuote } from './quote.js';
 import { saveSubmission } from './firebase.js';
+import { TEMPLATES } from './templates.js';
 import {
   BRAND, PLACEMENTS, SIGN_TYPES, MATERIALS, SWATCHES, LED_COLORS, LED_MODES, LED_EFFECTS, LED_DENSITY, TIMES, BG_PRESETS,
   MAX_ITEMS, defaultState, defaultItem,
@@ -115,6 +116,8 @@ const engine = new Engine(viewport, {
   onModeChange(m) {
     $('#walk-ui').hidden = m !== 'walk';
     $('#vp-hint').hidden = m === 'walk';
+    viewport.classList.toggle('walking', m === 'walk');
+    if (m === 'walk') setSpin(false);
     $$('#cams button').forEach((b) => b.classList.toggle('active', m === 'walk' && b.dataset.cam === 'walk'));
   },
   onWalkView(v) { $('#walk-view').textContent = v === 'third' ? 'Orang pertama' : 'Orang ketiga'; },
@@ -322,6 +325,8 @@ function updateSpec() {
   $('#vp-spec').textContent = `${state.items.length > 1 ? itemName(activeItem()) + ' · ' : ''}L ${fmt(s.w)} m × T ${fmt(s.h)} m × D ${fmt(s.d * 100, 0)} cm`;
   const out = $('#model-size');
   if (out) out.textContent = `Ukuran jadi ≈ ${fmt(s.w)} × ${fmt(s.h)} m`;
+  const rb = $('#read-box');
+  if (rb) rb.innerHTML = readBlock(activeItem());
   const lc = $('#led-count');
   if (lc) lc.textContent = rt.res.ledCount ? `${rt.res.ledCount} modul LED terpasang` : '';
 }
@@ -444,7 +449,7 @@ function panelModel() {
   }
   return `<h2 class="sec-title">Model signage</h2><p class="sec-sub">Neon box atau huruf timbul — menyala maupun tidak.</p>
     <div class="group"><div class="cards">${SIGN_TYPES.map((x) => `<button class="card ${S.type === x.id ? 'active' : ''}" data-set="sign.type" data-value="${x.id}"><div class="ic">${ICONS[x.id]}</div><b>${x.name}</b><span>${x.desc}</span></button>`).join('')}</div></div>
-    <div class="group"><div class="lbl">Ukuran<span class="val" id="model-size"></span></div>${dims}</div>
+    <div class="group"><div class="lbl">Ukuran<span class="val" id="model-size"></span></div>${dims}<div id="read-box">${readBlock(activeItem())}</div></div>
     ${t.group === 'box' ? '' : `<p class="hint">Lebar total mengikuti panjang teks & font. Lihat ukuran jadi di pojok kanan bawah layar.</p>`}`;
 }
 
@@ -457,6 +462,7 @@ function panelTeks() {
     <div class="group"><div class="lbl">Font<span class="val">${esc((fontIndex.find((f) => f.id === S.font) || {}).name || '')}</span></div>
       <div class="font-list">${cats.map((c) => fontIndex.filter((f) => f.cat === c).map((f) => `<button class="font-item ${S.font === f.id ? 'active' : ''}" data-set="sign.font" data-value="${f.id}"><canvas data-font="${f.id}" width="300" height="68"></canvas><span>${f.name} · ${c}</span></button>`).join('')).join('')}</div></div>
     ${range('sign.spacing', 'Jarak antar huruf', -5, 40, 0.5, '%')}
+    <div class="group" id="read-box">${readBlock(activeItem())}</div>
     ${isBox ? `<div class="group"><div class="lbl">Warna teks pada muka</div>${swatches('sign.textColor')}</div>
       ${range('sign.textScale', 'Ukuran teks pada muka', 25, 100, 1, '%')}
       <div class="group"><div class="lbl">Logo (opsional)</div>${upload('sign.logo', 'Logo usaha', !!S.logo, S.logo)}<p class="hint">PNG transparan paling bagus. Logo diletakkan di kiri teks.</p></div>`
@@ -528,7 +534,7 @@ function renderItems() {
   const n = state.items.length;
   const dot = (it) => (SIGN_TYPES.find((t) => t.id === it.sign.type).lit && it.led.on ? it.led.color : it.sign.front.color);
   $('#items').innerHTML = `<div class="items-row">${state.items.map((it, i) => `<button class="item-chip ${i === state.active ? 'active' : ''}" data-item="${i}" title="${esc(describe(it))}"><i style="background:${esc(dot(it))}"></i>${esc(itemName(it, i))}</button>`).join('')}
-    ${n < MAX_ITEMS ? `<button class="item-chip add" data-item-act="add" title="Tambah signage" aria-label="Tambah signage">${ICONS.plus}${n === 1 ? '<span>Tambah signage</span>' : ''}</button>` : ''}</div>
+    ${n < MAX_ITEMS ? `<button class="item-chip add" data-item-act="add" title="Tambah signage" aria-label="Tambah signage">${ICONS.plus}</button>` : ''}</div>
     <div class="items-acts">${n < MAX_ITEMS ? `<button class="icon-btn sm" data-item-act="dup" title="Duplikat signage aktif" aria-label="Duplikat">${ICONS.copy}</button>` : ''}
     ${n > 1 ? `<button class="icon-btn sm" data-item-act="del" title="Hapus signage aktif" aria-label="Hapus">${ICONS.trash}</button>` : ''}</div>`;
 }
@@ -834,7 +840,9 @@ function renderViewportUI() {
   const cams = [['front', 'Depan'], ['side', 'Samping'], ['top', 'Atas'], ['close', 'Dekat'], ['street', 'Pejalan']];
   $('#cams').innerHTML = cams.map(([id, n]) => `<button data-cam="${id}">${ICONS[id]}<span>${n}</span></button>`).join('') + `<button class="walk" data-cam="walk">${ICONS.walk}<span>Jalan 3D</span></button>`;
   $('#btn-shot').innerHTML = ICONS.camera;
-  $('#btn-full').innerHTML = ICONS.expand;
+  $('#btn-full').innerHTML = $('#studio').classList.contains('is-full') ? ICONS.shrink : ICONS.expand;
+  $('#btn-spin').innerHTML = ICONS.spin;
+  $('#panel-toggle').innerHTML = $('#studio').classList.contains('panel-off') ? ICONS.sidebarOff : ICONS.sidebar;
   $('#btn-undo').innerHTML = ICONS.undo;
   $('#btn-redo').innerHTML = ICONS.redo;
   $('#btn-dims').innerHTML = ICONS.ruler;
@@ -862,6 +870,33 @@ $('#walk-exit').addEventListener('click', () => engine.exitWalk());
 $('#walk-view').addEventListener('click', () => engine.toggleWalkView());
 $('#walk-run').addEventListener('click', (e) => { const on = !engine.walk.sprint; engine.setSprint(on); e.currentTarget.classList.toggle('on', on); });
 
+// joystick layar sentuh untuk Jalan 3D
+(function joystick() {
+  const pad = $('#joy'), knob = $('#joy-knob');
+  let id = null;
+  const set = (e) => {
+    const r = pad.getBoundingClientRect();
+    const R = r.width / 2;
+    let x = e.clientX - (r.left + R), y = e.clientY - (r.top + R);
+    const d = Math.hypot(x, y), max = R - 18;
+    if (d > max) { x *= max / d; y *= max / d; }
+    knob.style.transform = `translate(${x}px, ${y}px)`;
+    const dz = (v) => (Math.abs(v) < 0.12 ? 0 : v);
+    engine.setJoystick(dz(x / max), dz(-y / max));
+  };
+  const end = (e) => {
+    if (e.pointerId !== id) return;
+    id = null;
+    knob.style.transform = '';
+    engine.setJoystick(0, 0);
+  };
+  pad.addEventListener('pointerdown', (e) => { if (id !== null) return; id = e.pointerId; pad.setPointerCapture(id); set(e); e.preventDefault(); });
+  pad.addEventListener('pointermove', (e) => { if (e.pointerId === id) set(e); });
+  pad.addEventListener('pointerup', end);
+  pad.addEventListener('pointercancel', end);
+  pad.addEventListener('lostpointercapture', end);
+})();
+
 $('#btn-undo').addEventListener('click', () => travel(-1));
 $('#btn-redo').addEventListener('click', () => travel(1));
 $('#btn-dims').addEventListener('click', () => {
@@ -874,15 +909,59 @@ window.addEventListener('keydown', (e) => {
   const mod = e.ctrlKey || e.metaKey;
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); travel(e.shiftKey ? 1 : -1); }
   else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); travel(1); }
+  else if (!mod && e.key.toLowerCase() === 'p' && engine.mode === 'orbit') setPanel(studio.classList.contains('panel-off'));
+  else if (e.key === 'Escape' && engine.mode !== 'walk' && studio.classList.contains('is-full') && !document.fullscreenElement && $$('.drawer').every((d) => d.hidden)) setFull(false);
   else if (e.key === 'Delete' && engine.mode === 'orbit' && state.items.length > 1 && document.activeElement === document.body) { deleteItem(); }
 });
 
+// ---------- layar penuh ----------
+// Seluruh halaman dibuat fullscreen (agar jendela pengajuan dll. tetap tampil),
+// lalu studio mengisi layar. Jika Fullscreen API tidak ada (iPhone), cukup mode CSS.
+const studio = $('#studio');
+function setFull(on) {
+  studio.classList.toggle('is-full', on);
+  document.body.classList.toggle('full-lock', on);
+  $('#btn-full').innerHTML = on ? ICONS.shrink : ICONS.expand;
+  $('#btn-full').title = on ? 'Keluar layar penuh' : 'Layar penuh';
+  if (on) window.scrollTo(0, 0);
+}
 $('#btn-full').addEventListener('click', () => {
-  const el = viewport;
-  if (document.fullscreenElement) document.exitFullscreen();
-  else if (el.requestFullscreen) el.requestFullscreen().catch(() => toast('Layar penuh tidak didukung'));
-  else toast('Layar penuh tidak didukung di perangkat ini');
+  const de = document.documentElement;
+  if (studio.classList.contains('is-full')) {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    setFull(false);
+    if ((document.fullscreenElement || document.webkitFullscreenElement) && exit) { try { exit.call(document)?.catch?.(() => {}); } catch (_) { /* abaikan */ } }
+    return;
+  }
+  setFull(true);
+  const req = de.requestFullscreen || de.webkitRequestFullscreen;
+  if (req) { try { req.call(de, { navigationUI: 'hide' })?.catch?.(() => {}); } catch (_) { /* tetap mode CSS */ } }
 });
+['fullscreenchange', 'webkitfullscreenchange'].forEach((ev) => document.addEventListener(ev, () => {
+  if (!(document.fullscreenElement || document.webkitFullscreenElement) && studio.classList.contains('is-full')) setFull(false);
+}));
+
+// ---------- panel edit bisa disembunyikan ----------
+function setPanel(open, save = true) {
+  studio.classList.toggle('panel-off', !open);
+  $('#panel-toggle').innerHTML = open ? ICONS.sidebar : ICONS.sidebarOff;
+  $('#panel-toggle').title = open ? 'Sembunyikan panel edit (P)' : 'Tampilkan panel edit (P)';
+  if (save) store.set('dazpro.panel', open ? 1 : 0);
+}
+$('#panel-toggle').addEventListener('click', () => setPanel(studio.classList.contains('panel-off')));
+
+// ---------- putar otomatis (presentasi) ----------
+function setSpin(on) {
+  engine.controls.autoRotate = on;
+  engine.controls.autoRotateSpeed = 0.9;
+  $('#btn-spin').classList.toggle('on', on);
+}
+$('#btn-spin').addEventListener('click', () => { const on = !engine.controls.autoRotate; if (on && engine.mode === 'walk') engine.exitWalk(); setSpin(on); toast(on ? 'Putar otomatis aktif' : 'Putar otomatis berhenti'); });
+
+// petunjuk hilang setelah interaksi pertama / beberapa detik
+const fadeHint = () => $('#vp-hint').classList.add('fade');
+setTimeout(fadeHint, 9000);
+viewport.addEventListener('pointerdown', fadeHint, { once: true });
 
 function download(url, name) {
   const a = document.createElement('a');
@@ -1165,6 +1244,67 @@ async function loadState(raw) {
   pushHistory();
 }
 
+// ---------- template desain ----------
+async function drawTplPreview(c, p) {
+  const g = c.getContext('2d');
+  const W = c.width, H = c.height;
+  g.fillStyle = p.bg; g.fillRect(0, 0, W, H);
+  let f;
+  try { f = await loadFont(p.font); } catch (_) { return; }
+  if (p.box) {
+    const bw = p.round ? H * 0.72 : W * 0.62, bh = p.round ? H * 0.72 : H * 0.5;
+    const x = (W - bw) / 2, y = (H - bh) / 2;
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 18;
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    if (p.round) g.arc(W / 2, H / 2, bw / 2, 0, Math.PI * 2); else g.roundRect(x, y, bw, bh, 8);
+    g.fill(); g.restore();
+    drawTextFit(g, f, p.text, { x: x + bw * 0.12, y: y + bh * 0.22, w: bw * 0.76, h: bh * 0.56 }, { color: p.fg });
+    return;
+  }
+  const box = { x: W * 0.1, y: H * 0.28, w: W * 0.8, h: H * 0.44 };
+  if (p.glow) { g.save(); g.shadowColor = p.glow; g.shadowBlur = 26; drawTextFit(g, f, p.text, box, { color: p.fg }); g.restore(); }
+  drawTextFit(g, f, p.text, box, { color: p.fg });
+}
+function openTemplates() {
+  $('#tpl-grid').innerHTML = TEMPLATES.map((t) => `<button class="tpl" data-tpl="${t.id}"><canvas width="480" height="300"></canvas><div><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></div></button>`).join('');
+  openModal('#tpl-modal');
+  $$('#tpl-grid canvas').forEach((c, i) => drawTplPreview(c, TEMPLATES[i].preview));
+}
+$('#btn-templates').addEventListener('click', openTemplates);
+$$('[data-open-templates]').forEach((b) => b.addEventListener('click', () => { studio.scrollIntoView({ behavior: 'smooth' }); openTemplates(); }));
+$('#tpl-grid').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-tpl]');
+  if (!b) return;
+  const t = TEMPLATES.find((x) => x.id === b.dataset.tpl);
+  $('#tpl-modal').hidden = true;
+  setSpin(false);
+  await loadState(t.state());
+  tab = 'teks'; renderPanel();
+  toast(`Template "${t.name}" dipakai — ubah teks sesuai nama usaha Anda`);
+});
+
+// ---------- jarak keterbacaan ----------
+// Patokan industri signage: ±1,2 m per cm tinggi huruf untuk dibaca nyaman,
+// ±3,5 m per cm sebagai batas maksimal (kondisi terang, kontras baik).
+function capHeightCm(it) {
+  const S = it.sign;
+  const lines = Math.max(1, S.text.split('\n').filter((l) => l.trim()).length);
+  if (!S.type.startsWith('box_')) return S.letterHeight;
+  const face = S.type === 'box_rect' ? S.height : S.width * (S.type === 'box_round' ? 0.62 : 0.8);
+  return (face * (S.textScale / 100) * 0.62) / lines;
+}
+function readability(it) {
+  const cm = capHeightCm(it);
+  const r = (v) => (v >= 100 ? Math.round(v / 10) * 10 : Math.round(v));
+  return { cm, ideal: r(cm * 1.2), max: r(cm * 3.5) };
+}
+const readBlock = (it) => {
+  const r = readability(it);
+  return `<div class="read">${ICONS.eye}<div><b>Nyaman dibaca hingga ±${fmt(r.ideal, 0)} m</b><span>Batas maksimal ±${fmt(r.max, 0)} m · tinggi huruf ≈ ${fmt(r.cm, 0)} cm</span></div></div>`;
+};
+
 // ---------- toast ----------
 let toastT = 0;
 function toast(msg) {
@@ -1189,11 +1329,12 @@ function toast(msg) {
   const ctx = { windowMats: [], lampMats: [], lampLights: [] };
   engine.setCity(buildCity(ctx), ctx);
   await applyAssets();
+  setPanel(store.get('dazpro.panel', 1) !== 0, false);
   renderViewportUI();
   renderItems();
   renderPanel();
   invalidate({ time: true, hero: true, signs: 'all' });
   pushHistory();
   if (fromLink) { toast('Desain dari link dibuka'); autosave(); }
-  window.__dazpro = { engine, get state() { return state; }, change, addItem, deleteItem, travel, openShare, get pricing() { return pricing; }, get history() { return hist; } };
+  window.__dazpro = { engine, setPanel, setFull, openTemplates, get state() { return state; }, change, addItem, deleteItem, travel, openShare, get pricing() { return pricing; }, get history() { return hist; } };
 })();

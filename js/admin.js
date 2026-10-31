@@ -1,4 +1,5 @@
-import { onAuth, signIn, signOutAdmin, watchSubmissions, updateSubmission, deleteSubmission, STATUSES } from './firebase.js';
+import { onAuth, signIn, signOutAdmin, redirectResult, watchSubmissions, updateSubmission, deleteSubmission, STATUSES } from './firebase.js';
+import { BRAND } from './config.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -12,12 +13,30 @@ function when(ts) {
   const d = ts && ts.toDate ? ts.toDate() : null;
   return d ? d.toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 }
-function waLink(phone) {
+function waLink(phone, text = '') {
   let n = String(phone || '').replace(/\D/g, '');
   if (!n) return '';
   if (n.startsWith('0')) n = '62' + n.slice(1);
-  return `https://wa.me/${n}`;
+  return `https://wa.me/${n}${text ? '?text=' + encodeURIComponent(text) : ''}`;
 }
+function waText(r) {
+  const what = (r.items || []).map((it) => it.name).join(', ');
+  return `Halo ${r.name}, kami dari ${BRAND.name}. Terima kasih sudah mengajukan desain signage${what ? ` (${what})` : ''} untuk ${r.placement}. Estimasi awal ${rp(r.total)}. Boleh kami jadwalkan survei lokasi${r.city ? ' di ' + r.city : ''}?`;
+}
+function exportCsv(list) {
+  const head = ['Tanggal', 'Status', 'Nama', 'Usaha', 'WhatsApp', 'Kota', 'Penempatan', 'Jumlah signage', 'Signage', 'Estimasi (Rp)', 'Catatan pelanggan', 'Catatan internal'];
+  const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = list.map((r) => [when(r.createdAt), stName(r.status), r.name, r.biz, r.phone, r.city, r.placement, r.count || 1, (r.items || []).map((i) => i.name).join(' / '), Math.round(r.total || 0), r.note, r.adminNote].map(cell).join(','));
+  const blob = new Blob(['\ufeff' + [head.map(cell).join(','), ...lines].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pengajuan-dazpro-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+const visible = () => {
+  const term = q.trim().toLowerCase();
+  return rows.filter((r) => (filter === 'semua' || r.status === filter) && (!term || [r.name, r.biz, r.city, r.phone].join(' ').toLowerCase().includes(term)));
+};
 
 function render() {
   const cnt = (id) => rows.filter((r) => r.status === id).length;
@@ -29,8 +48,7 @@ function render() {
     `<div class="stat"><b>${rp(deal)}</b><span>Nilai deal (estimasi)</span></div>`,
   ].join('');
   $('#filters').innerHTML = [{ id: 'semua', name: 'Semua' }, ...STATUSES].map((s) => `<button class="chip ${filter === s.id ? 'active' : ''}" data-f="${s.id}">${s.name}</button>`).join('');
-  const term = q.trim().toLowerCase();
-  const list = rows.filter((r) => (filter === 'semua' || r.status === filter) && (!term || [r.name, r.biz, r.city, r.phone].join(' ').toLowerCase().includes(term)));
+  const list = visible();
   $('#empty').hidden = list.length > 0;
   $('#list').innerHTML = list.map((r) => `
     <button class="card-sub" data-id="${esc(r.id)}">
@@ -46,7 +64,7 @@ function openDetail(id) {
   const r = rows.find((x) => x.id === id);
   if (!r) return;
   $('#d-title').textContent = `${r.name}${r.biz ? ' · ' + r.biz : ''}`;
-  const wa = waLink(r.phone);
+  const wa = waLink(r.phone, waText(r));
   const designUrl = r.design ? `index.html#d=${r.design}` : '';
   $('#d-body').innerHTML = `
     <div class="d-grid">
@@ -91,10 +109,39 @@ $('#filters').addEventListener('click', (e) => { const b = e.target.closest('[da
 $('#search').addEventListener('input', (e) => { q = e.target.value; render(); });
 $('#list').addEventListener('click', (e) => { const c = e.target.closest('[data-id]'); if (c) openDetail(c.dataset.id); });
 $('#detail').addEventListener('click', (e) => { if (e.target.id === 'detail' || e.target.closest('[data-close]')) $('#detail').hidden = true; });
+const HOST = location.hostname;
+const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|; wv\)|TikTok/i.test(navigator.userAgent);
+function explain(code, email) {
+  const steps = {
+    'auth/unauthorized-domain': `Domain <b>${esc(HOST)}</b> belum diizinkan. Buka Firebase → <b>Authentication</b> → tab <b>Settings</b> → <b>Authorized domains</b> → <b>Add domain</b>, isi <code>${esc(HOST)}</code>, simpan, lalu coba lagi.`,
+    'auth/operation-not-allowed': 'Login Google belum diaktifkan. Buka Firebase → <b>Authentication</b> → <b>Sign-in method</b> → <b>Google</b> → geser <b>Enable</b> → <b>Save</b>.',
+    'auth/configuration-not-found': 'Authentication belum disiapkan. Buka Firebase → <b>Authentication</b> → <b>Get started</b>, lalu aktifkan <b>Google</b> di tab Sign-in method.',
+    'auth/popup-closed-by-user': 'Jendela login ditutup sebelum selesai. Klik tombol lagi dan pilih akun Google Anda.',
+    'auth/cancelled-popup-request': 'Login dibatalkan. Klik tombol sekali saja lalu tunggu jendela Google muncul.',
+    'auth/network-request-failed': 'Koneksi internet bermasalah. Periksa koneksi lalu coba lagi.',
+    'auth/internal-error': 'Terjadi kesalahan di Google. Coba lagi beberapa saat, atau buka di browser Chrome/Safari.',
+    'permission-denied': `Akun <b>${esc(email || '')}</b> tidak punya akses. Pastikan email ini tertulis di Firestore → <b>Rules</b> lalu klik <b>Publish</b>, atau masuk dengan akun admin yang benar.`,
+    'failed-precondition': 'Database Firestore belum dibuat. Buka Firebase → <b>Firestore Database</b> → <b>Create database</b>.',
+    'not-found': 'Database Firestore belum dibuat. Buka Firebase → <b>Firestore Database</b> → <b>Create database</b>.',
+  };
+  return steps[code] || `Gagal (${esc(code || 'tidak diketahui')}). Coba lagi atau kirim tangkapan layar ini ke developer.`;
+}
+function loginError(code, email) {
+  const m = $('#login-msg');
+  m.hidden = false;
+  m.innerHTML = explain(code, email);
+}
 $('#btn-login').addEventListener('click', async () => {
-  try { await signIn(); } catch (e) { const m = $('#login-msg'); m.hidden = false; m.textContent = 'Login gagal: ' + (e.code || e.message) + (e.code === 'auth/unauthorized-domain' ? ' — tambahkan domain situs ini di Firebase → Authentication → Settings → Authorized domains.' : ''); }
+  const btn = $('#btn-login');
+  btn.disabled = true; btn.textContent = 'Membuka Google…';
+  $('#login-msg').hidden = true;
+  try { await signIn(); } catch (e) { loginError(e.code); }
+  finally { btn.disabled = false; btn.textContent = 'Masuk dengan Google'; }
 });
+if (inApp) { const w = $('#inapp'); if (w) w.hidden = false; }
+redirectResult().catch((e) => loginError(e.code));
 $('#logout').addEventListener('click', () => signOutAdmin());
+$('#export').addEventListener('click', () => { const l = visible(); if (!l.length) return toast('Tidak ada data untuk diekspor'); exportCsv(l); toast(`${l.length} pengajuan diekspor`); });
 
 function show(which, msg = '') {
   $('#login').hidden = which !== 'login';
@@ -110,12 +157,6 @@ onAuth(async (user) => {
   show('board', 'Memuat pengajuan…');
   unsub = await watchSubmissions(
     (data) => { rows = data; show('board'); render(); },
-    (err) => {
-      show('login');
-      const m = $('#login-msg'); m.hidden = false;
-      m.textContent = err.code === 'permission-denied'
-        ? `Akun ${user.email} bukan admin. Tambahkan email ini di firestore.rules, atau masuk dengan akun admin.`
-        : 'Gagal memuat: ' + (err.code || err.message);
-    },
+    (err) => { show('login'); loginError(err.code, user.email); },
   );
-}).catch(() => show('', 'Tidak bisa memuat Firebase. Periksa koneksi internet.'));
+}).catch(() => { show('login'); const m = $('#login-msg'); m.hidden = false; m.textContent = 'Tidak bisa memuat Firebase. Periksa koneksi internet lalu muat ulang halaman.'; });

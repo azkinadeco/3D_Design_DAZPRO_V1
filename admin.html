@@ -26,17 +26,20 @@
 
   <main class="adm">
     <section class="login" id="login" hidden>
-      <h1>Masuk admin</h1>
-      <p class="muted">Gunakan akun Google yang terdaftar sebagai admin.</p>
-      <button class="btn btn-primary" id="btn-login">Masuk dengan Google</button>
-      <p class="note" id="login-msg" hidden></p>
+      <span class="login-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 8h7a8 8 0 010 16H9z" /></svg></span>
+      <h1>Admin DAZPRO</h1>
+      <p class="muted">Masuk dengan akun Google yang terdaftar sebagai admin untuk melihat pengajuan desain.</p>
+      <button class="btn btn-primary btn-block" id="btn-login">Masuk dengan Google</button>
+      <p class="note" id="inapp" hidden>Anda membuka halaman ini dari aplikasi (WhatsApp/Instagram/dll). Google tidak mengizinkan login di sini — buka lewat <b>Chrome</b> atau <b>Safari</b>.</p>
+      <div class="login-err" id="login-msg" hidden></div>
     </section>
 
     <section id="board" hidden>
       <div class="stats" id="stats"></div>
       <div class="toolbar">
         <div class="seg-ctl" id="filters"></div>
-        <input class="input" id="search" placeholder="Cari nama, usaha, kota…" />
+        <input class="input" id="search" placeholder="Cari nama, usaha, kota, nomor…" />
+        <button class="btn btn-ghost btn-sm" id="export">Export CSV</button>
       </div>
       <div class="list" id="list"></div>
       <p class="muted small" id="empty" hidden>Belum ada pengajuan.</p>

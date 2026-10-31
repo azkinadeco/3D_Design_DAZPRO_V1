@@ -33,7 +33,22 @@ export async function onAuth(cb) {
 }
 export async function signIn() {
   const { au, auth } = await getAuthKit();
-  return au.signInWithPopup(auth, new au.GoogleAuthProvider());
+  const provider = new au.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  try {
+    return await au.signInWithPopup(auth, provider);
+  } catch (e) {
+    // popup diblokir / tidak didukung (mis. HP, in-app browser) → pakai redirect
+    if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/web-storage-unsupported'].includes(e.code)) {
+      return au.signInWithRedirect(auth, provider);
+    }
+    throw e;
+  }
+}
+/** Ambil hasil login redirect (jika ada) agar error-nya bisa ditampilkan. */
+export async function redirectResult() {
+  const { au, auth } = await getAuthKit();
+  return au.getRedirectResult(auth);
 }
 export async function signOutAdmin() {
   const { au, auth } = await getAuthKit();

@@ -409,7 +409,7 @@ export class Engine {
     av.visible = false;
     this.scene.add(av);
     this.avatar = { group: av, legL, legR, armL, armR, phase: 0 };
-    this.walk = { yaw: Math.PI, pitch: -0.08, keys: new Set(), joy: { x: 0, y: 0 }, view: 'third', sprint: false, camDist: 4.6 };
+    this.walk = { yaw: Math.PI, pitch: -0.08, yawS: Math.PI, pitchS: -0.08, keys: new Set(), joy: { x: 0, y: 0 }, view: 'third', sprint: false, camDist: 4.6 };
 
     const isTyping = (e) => /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
     window.addEventListener('keydown', (e) => {
@@ -423,17 +423,36 @@ export class Engine {
     window.addEventListener('keyup', (e) => this.walk.keys.delete(e.code));
     window.addEventListener('blur', () => this.walk.keys.clear());
 
-    // drag untuk melihat sekeliling saat jalan
+    // geser layar untuk melihat sekeliling saat jalan.
+    // Hanya satu pointer yang dipakai, perubahan per-gerakan dibatasi, dan
+    // status selalu direset saat pointer lepas/batal → kamera tidak "muter-muter".
     const el = this.renderer.domElement;
     let look = null;
-    el.addEventListener('pointerdown', (e) => { if (this.mode === 'walk') { look = { x: e.clientX, y: e.clientY }; el.setPointerCapture(e.pointerId); } });
-    el.addEventListener('pointermove', (e) => {
-      if (this.mode !== 'walk' || !look) return;
-      this.walk.yaw -= (e.clientX - look.x) * 0.005;
-      this.walk.pitch = THREE.MathUtils.clamp(this.walk.pitch - (e.clientY - look.y) * 0.004, -0.9, 0.9);
-      look = { x: e.clientX, y: e.clientY };
+    const stopLook = (e) => {
+      if (!look || (e && e.pointerId !== look.id)) return;
+      try { el.releasePointerCapture(look.id); } catch (_) { /* noop */ }
+      look = null;
+    };
+    el.addEventListener('pointerdown', (e) => {
+      if (this.mode !== 'walk' || look || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      look = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      try { el.setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
+      e.preventDefault();
     });
-    el.addEventListener('pointerup', () => (look = null));
+    el.addEventListener('pointermove', (e) => {
+      if (this.mode !== 'walk' || !look || e.pointerId !== look.id) return;
+      if (e.pointerType === 'mouse' && !(e.buttons & 1)) { stopLook(e); return; }
+      const dx = THREE.MathUtils.clamp(e.clientX - look.x, -60, 60);
+      const dy = THREE.MathUtils.clamp(e.clientY - look.y, -60, 60);
+      look.x = e.clientX; look.y = e.clientY;
+      const k = e.pointerType === 'touch' ? 0.0055 : 0.0038;
+      this.walk.yaw -= dx * k;
+      this.walk.pitch = THREE.MathUtils.clamp(this.walk.pitch - dy * k * 0.85, -0.75, 0.75);
+    });
+    el.addEventListener('pointerup', stopLook);
+    el.addEventListener('pointercancel', stopLook);
+    el.addEventListener('lostpointercapture', stopLook);
+    window.addEventListener('blur', () => stopLook());
     el.addEventListener('wheel', (e) => {
       if (this.mode !== 'walk') return;
       this.walk.camDist = THREE.MathUtils.clamp(this.walk.camDist + e.deltaY * 0.004, 1.8, 9);
@@ -452,6 +471,8 @@ export class Engine {
     // hadapkan ke signage
     this.walk.yaw = Math.atan2(t.x - start.x, t.z - start.z) + Math.PI;
     this.walk.pitch = -0.05 + Math.min(0.5, Math.max(0, (t.y - 2) / 25));
+    this.walk.yawS = this.walk.yaw; this.walk.pitchS = this.walk.pitch;
+    this.avatar.group.rotation.y = this.walk.yaw + Math.PI;
     this.avatar.group.visible = this.walk.view === 'third';
     this.selBox.visible = false;
     this.hooks.onModeChange && this.hooks.onModeChange('walk');
@@ -481,13 +502,18 @@ export class Engine {
   _walkUpdate(dt) {
     const w = this.walk, k = w.keys;
     let fwd = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) + w.joy.y;
-    let str = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + w.joy.x * 0.6;
-    const turn = (k.has('ArrowRight') || k.has('KeyE') ? 1 : 0) - (k.has('ArrowLeft') || k.has('KeyQ') ? 1 : 0) + w.joy.x * 0.6;
+    let str = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + w.joy.x;
+    const turn = (k.has('ArrowRight') || k.has('KeyE') ? 1 : 0) - (k.has('ArrowLeft') || k.has('KeyQ') ? 1 : 0);
     w.yaw -= turn * dt * 1.8;
+    // sudut kamera dihaluskan sedikit, tetapi posisi kamera dihitung langsung
+    // dari sudut tersebut (tanpa lerp posisi) agar tidak berayun/berputar.
+    const sm = 1 - Math.exp(-dt * 18);
+    w.yawS += Math.atan2(Math.sin(w.yaw - w.yawS), Math.cos(w.yaw - w.yawS)) * sm;
+    w.pitchS += (w.pitch - w.pitchS) * sm;
     fwd = THREE.MathUtils.clamp(fwd, -1, 1); str = THREE.MathUtils.clamp(str, -1, 1);
     const speed = (w.sprint || k.has('ShiftLeft') || k.has('ShiftRight') ? 6.5 : 3.0) * dt;
     const a = this.avatar;
-    const dir = new THREE.Vector3(Math.sin(w.yaw), 0, Math.cos(w.yaw)).multiplyScalar(-1); // arah hadap kamera
+    const dir = new THREE.Vector3(-Math.sin(w.yawS), 0, -Math.cos(w.yawS)); // arah hadap kamera
     const right = new THREE.Vector3(-dir.z, 0, dir.x);
     const move = dir.multiplyScalar(fwd).add(right.multiplyScalar(str));
     const moving = move.lengthSq() > 0.0001;
@@ -497,8 +523,9 @@ export class Engine {
       const b = this.walkBounds || { x: [-60, 60], z: [-30, 30] };
       a.group.position.x = THREE.MathUtils.clamp(a.group.position.x, b.x[0], b.x[1]);
       a.group.position.z = THREE.MathUtils.clamp(a.group.position.z, b.z[0], b.z[1]);
-      const targetRot = Math.atan2(move.x, move.z);
-      let d = targetRot - a.group.rotation.y;
+      // badan menghadap arah jalan kecuali mundur (tetap menghadap depan)
+      const face = fwd < -0.2 && Math.abs(str) < 0.3 ? Math.atan2(-move.x, -move.z) : Math.atan2(move.x, move.z);
+      let d = face - a.group.rotation.y;
       d = Math.atan2(Math.sin(d), Math.cos(d));
       a.group.rotation.y += d * Math.min(1, dt * 10);
       a.phase += dt * (speed / dt) * 2.6;
@@ -510,15 +537,16 @@ export class Engine {
     a.group.position.y = a.group.position.z > 3.9 && a.group.position.z < 7.1 ? 0.15 : a.group.position.z > 14 && a.group.position.z < 17 ? 0.15 : 0;
 
     const head = a.group.position.clone().add(new THREE.Vector3(0, 1.62, 0));
-    const lookDir = new THREE.Vector3(-Math.sin(w.yaw) * Math.cos(w.pitch), Math.sin(w.pitch), -Math.cos(w.yaw) * Math.cos(w.pitch));
+    const lookDir = new THREE.Vector3(-Math.sin(w.yawS) * Math.cos(w.pitchS), Math.sin(w.pitchS), -Math.cos(w.yawS) * Math.cos(w.pitchS));
     if (w.view === 'first') {
       this.camera.position.copy(head);
       this.camera.lookAt(head.clone().add(lookDir));
     } else {
-      const camPos = head.clone().addScaledVector(lookDir, -w.camDist).add(new THREE.Vector3(0, 0.6, 0));
-      camPos.y = Math.max(camPos.y, 0.4);
-      this.camera.position.lerp(camPos, Math.min(1, dt * 8));
-      this.camera.lookAt(head.clone().addScaledVector(lookDir, 2).add(new THREE.Vector3(0, 0.1, 0)));
+      const pivot = head.clone().add(new THREE.Vector3(0, 0.25, 0));
+      const camPos = pivot.clone().addScaledVector(lookDir, -w.camDist);
+      camPos.y = Math.max(camPos.y, 0.35);
+      this.camera.position.copy(camPos);
+      this.camera.lookAt(pivot.clone().addScaledVector(lookDir, 3));
     }
   }
 
