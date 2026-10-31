@@ -9,6 +9,45 @@ const stName = (id) => (STATUSES.find((s) => s.id === id) || {}).name || id;
 const toast = (m) => { const t = $('#toast'); t.textContent = m; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2200); };
 
 let rows = [], filter = 'semua', q = '', unsub = null;
+let known = null; // id pengajuan yang sudah dilihat (null = belum ada data awal)
+
+// ---------- notifikasi pengajuan baru ----------
+function beep() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1320].forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.value = f; o.connect(g); g.connect(ac.destination);
+      const t = ac.currentTime + i * 0.16;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+      o.start(t); o.stop(t + 0.16);
+    });
+  } catch (_) { /* tanpa suara */ }
+}
+function notifyNew(list) {
+  if (!list.length) return;
+  beep();
+  toast(list.length > 1 ? `${list.length} pengajuan baru masuk` : `Pengajuan baru: ${list[0].name}`);
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const r = list[0];
+    const n = new Notification(list.length > 1 ? `${list.length} pengajuan baru` : `Pengajuan baru — ${r.name}`, {
+      body: `${r.biz ? r.biz + ' · ' : ''}${r.placement || ''} · ${rp(r.total)}`,
+      tag: 'dazpro-pengajuan',
+    });
+    n.onclick = () => { window.focus(); openDetail(r.id); n.close(); };
+  }
+}
+function updateTitle() {
+  const n = rows.filter((r) => r.status === 'baru').length;
+  document.title = `${n ? `(${n}) ` : ''}Admin — DAZPRO Signage Studio`;
+}
+function notifButton() {
+  const b = $('#notif');
+  if (!('Notification' in window)) { b.hidden = true; return; }
+  b.hidden = Notification.permission === 'granted';
+  b.textContent = Notification.permission === 'denied' ? 'Notifikasi diblokir browser' : 'Aktifkan notifikasi';
+  b.disabled = Notification.permission === 'denied';
+}
 
 function when(ts) {
   const d = ts && ts.toDate ? ts.toDate() : null;
@@ -142,6 +181,11 @@ $('#btn-login').addEventListener('click', async () => {
 if (inApp) { const w = $('#inapp'); if (w) w.hidden = false; }
 redirectResult().catch((e) => loginError(e.code));
 $('#logout').addEventListener('click', () => signOutAdmin());
+$('#notif').addEventListener('click', async () => {
+  try { await Notification.requestPermission(); } catch (_) { /* abaikan */ }
+  notifButton();
+  if (Notification.permission === 'granted') { toast('Notifikasi aktif — biarkan halaman admin tetap terbuka'); beep(); }
+});
 let priceMounted = false;
 $('#adm-tabs').addEventListener('click', (e) => {
   const b = e.target.closest('[data-view]');
@@ -164,10 +208,16 @@ onAuth(async (user) => {
   $('#logout').hidden = !user;
   $('#who').textContent = user ? user.email : '';
   window.__adminEmail = user ? user.email : '';
+  known = null;
+  if (user) notifButton(); else $('#notif').hidden = true;
   if (!user) { show('login'); return; }
   show('board', 'Memuat pengajuan…');
   unsub = await watchSubmissions(
-    (data) => { rows = data; show('board'); render(); },
+    (data) => {
+      if (known) notifyNew(data.filter((r) => !known.has(r.id)));
+      known = new Set(data.map((r) => r.id));
+      rows = data; show('board'); render(); updateTitle();
+    },
     (err) => { show('login'); loginError(err.code, user.email); },
   );
 }).catch(() => { show('login'); const m = $('#login-msg'); m.hidden = false; m.textContent = 'Tidak bisa memuat Firebase. Periksa koneksi internet lalu muat ulang halaman.'; });
