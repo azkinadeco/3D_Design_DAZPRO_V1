@@ -9,9 +9,9 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { makeSky } from './environment.js';
 
 const TIME = {
-  day:   { top: '#5f9fd8', bottom: '#e6eef5', glow: '#ffffff', glowAmt: 0.05, hemiSky: '#e4f0ff', hemiGround: '#8b877c', hemi: 0.6, sun: '#fff4e2', sunI: 3.3, sunPos: [28, 48, 30], exp: 0.95, bloom: 0.35, thr: 1.6, env: 0.45, windows: 0, lamps: 0, fog: '#dfe7ee' },
-  dusk:  { top: '#1f2d55', bottom: '#f09a68', glow: '#ff9a5a', glowAmt: 0.35, hemiSky: '#9fb0dc', hemiGround: '#4a3a30', hemi: 0.42, sun: '#ff9c5a', sunI: 1.1, sunPos: [-45, 10, 26], exp: 0.95, bloom: 0.6, thr: 1.0, env: 0.28, windows: 0.55, lamps: 0.7, fog: '#a98a86' },
-  night: { top: '#03050b', bottom: '#111a2d', glow: '#2a3f6a', glowAmt: 0.25, hemiSky: '#2f3d60', hemiGround: '#0a0a0d', hemi: 0.22, sun: '#9fb4ff', sunI: 0.2, sunPos: [20, 40, -15], exp: 1.0, bloom: 0.55, thr: 0.95, env: 0.1, windows: 1, lamps: 1.4, fog: '#0d1320' },
+  day:   { cloud: '#ffffff', cloudAmt: 0.62, sunAmt: 1, stars: 0, top: '#5f9fd8', bottom: '#e6eef5', glow: '#ffffff', glowAmt: 0.05, hemiSky: '#e4f0ff', hemiGround: '#8b877c', hemi: 0.6, sun: '#fff4e2', sunI: 3.3, sunPos: [28, 48, 30], exp: 0.95, bloom: 0.35, thr: 1.6, env: 0.45, windows: 0, lamps: 0, fog: '#dfe7ee' },
+  dusk:  { cloud: '#f1b39a', cloudAmt: 0.55, sunAmt: 0.9, stars: 0.15, top: '#1f2d55', bottom: '#f09a68', glow: '#ff9a5a', glowAmt: 0.35, hemiSky: '#9fb0dc', hemiGround: '#4a3a30', hemi: 0.42, sun: '#ff9c5a', sunI: 1.1, sunPos: [-45, 10, 26], exp: 0.95, bloom: 0.6, thr: 1.0, env: 0.28, windows: 0.55, lamps: 0.7, fog: '#a98a86' },
+  night: { cloud: '#1c2438', cloudAmt: 0.35, sunAmt: 0, stars: 0.9, top: '#03050b', bottom: '#111a2d', glow: '#2a3f6a', glowAmt: 0.25, hemiSky: '#2f3d60', hemiGround: '#0a0a0d', hemi: 0.22, sun: '#9fb4ff', sunI: 0.2, sunPos: [20, 40, -15], exp: 1.0, bloom: 0.55, thr: 0.95, env: 0.1, windows: 1, lamps: 1.4, fog: '#0d1320' },
 };
 
 export class Engine {
@@ -50,7 +50,9 @@ export class Engine {
     this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight('#fff', 2);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    const hiQ = Math.min(window.innerWidth, window.innerHeight) > 700;
+    this.sun.shadow.mapSize.set(hiQ ? 4096 : 2048, hiQ ? 4096 : 2048);
+    this.sun.shadow.radius = 3;
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.03;
     const sc = this.sun.shadow.camera;
@@ -105,6 +107,8 @@ export class Engine {
     const t = TIME[key] || TIME.day;
     const u = this.sky.material.uniforms;
     u.top.value.set(t.top); u.bottom.value.set(t.bottom); u.glowCol.value.set(t.glow); u.glowAmt.value = t.glowAmt;
+    u.sunDir.value.set(...t.sunPos).normalize(); u.sunCol.value.set(t.sun); u.sunAmt.value = t.sunAmt;
+    u.cloudCol.value.set(t.cloud); u.cloudAmt.value = t.cloudAmt; u.stars.value = t.stars;
     this.hemi.color.set(t.hemiSky); this.hemi.groundColor.set(t.hemiGround); this.hemi.intensity = t.hemi;
     this.sun.color.set(t.sun); this.sun.intensity = t.sunI;
     this.sunOffset = new THREE.Vector3(...t.sunPos);
