@@ -72,7 +72,7 @@ export function buildSign(state, font, assets = {}) {
   group.name = 'signage';
   const glow = []; // { mat, base }
   const warnings = [];
-  const doubleSided = state.placement === 'pole';
+  const doubleSided = S.sides === 2;
   const out = { group, glow, halo: null, light: null, ledCount: 0, letters: 0, area: 0, warnings, size: null };
   const density = (LED_DENSITY.find((d) => d.id === L.density) || LED_DENSITY[1]).perM2;
 

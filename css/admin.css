@@ -35,3 +35,28 @@ body.admin{background:var(--bg)}
 .d-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .d-actions select,.d-body textarea{font:inherit}
 @media(max-width:640px){.card-sub{grid-template-columns:84px minmax(0,1fr)}.card-sub img{width:84px;height:56px}.card-sub .r{grid-column:1/-1;text-align:left}.d-grid{grid-template-columns:1fr}}
+.adm-tabs{display:inline-flex;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;margin-bottom:18px}
+.adm-tabs button{border:0;background:transparent;padding:8px 16px;border-radius:999px;font-weight:600;color:var(--ink-2)}
+.adm-tabs button.active{background:var(--ink);color:#fff}
+.pr-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+.pr-head h2{margin:0 0 4px;font-size:22px;letter-spacing:-.02em}
+.pr-head p{margin:0}
+.pr-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pr-toggle{background:var(--surface);min-width:300px}
+.pr-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;margin-top:14px;align-items:start}
+.pr-side{position:sticky;top:76px}
+.pr-sec{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-bottom:12px}
+.pr-sec h3{margin:0;font-size:15px}
+.pr-sec>p{margin:2px 0 10px}
+.pf{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.pf-l b{display:block;font-size:13.5px;font-weight:600}
+.pf-l small{color:var(--muted);font-size:12px}
+.pf-in{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:0 6px}
+.pf-in i{font-style:normal;color:var(--muted);font-size:12px;text-align:right}
+.pf-in .input{padding:8px 10px;font-variant-numeric:tabular-nums}
+.pf-in em{grid-column:2;font-style:normal;font-size:11.5px;color:var(--muted);margin-top:2px}
+.ex{width:100%;border-collapse:collapse;font-size:12.5px}
+.ex td{padding:8px 0;border-top:1px solid var(--line);vertical-align:top}
+.ex td:last-child{text-align:right;font-weight:700;white-space:nowrap;padding-left:10px;font-variant-numeric:tabular-nums}
+.formula{margin:8px 0 0;padding-left:16px;font-size:12.5px;color:var(--ink-2);line-height:1.6}
+@media(max-width:900px){.pr-grid{grid-template-columns:1fr}.pr-side{position:static}.pf{grid-template-columns:1fr}.pr-toggle{min-width:0}}

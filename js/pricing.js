@@ -1,5 +1,20 @@
 // Estimasi harga — aturan di config.js (PRICING)
-import { PRICING as P, SIGN_TYPES, MATERIALS, PLACEMENTS, LED_EFFECTS } from './config.js';
+import { PRICING as P, SIGN_TYPES, MATERIALS, PLACEMENTS, LED_EFFECTS, PRICE_RULES_DEFAULT, INSTALL_TYPES, AREAS, INSTALL_AUTO } from './config.js';
+
+// ---------- rumus baru (dari admin) ----------
+let RULES = null;
+function merge(base, over) {
+  const out = Array.isArray(base) ? [...base] : { ...base };
+  for (const [k, v] of Object.entries(over || {})) {
+    out[k] = v && typeof v === 'object' && !Array.isArray(v) && base[k] && typeof base[k] === 'object' ? merge(base[k], v) : v;
+  }
+  return out;
+}
+/** Pasang pengaturan harga dari admin (null = pakai rumus lama). */
+export function setRules(r) { RULES = r ? merge(PRICE_RULES_DEFAULT, r) : null; }
+export const rulesActive = () => !!(RULES && RULES.active);
+export const getRules = () => RULES || PRICE_RULES_DEFAULT;
+export const installTypeOf = (ctx) => (ctx.install && ctx.install !== 'auto' ? ctx.install : INSTALL_AUTO[ctx.placement] || 'indoor');
 
 export function formatRp(n) {
   const v = Math.max(0, Math.round(n / 1000) * 1000);
@@ -63,7 +78,8 @@ export function computeItemLines(state, m) {
  * (signage tambahan di lokasi yang sama +40% per unit).
  * @param list [{ name, view, metrics }]
  */
-export function computePrice(placement, list) {
+export function computePrice(placement, list, ctx = {}) {
+  if (rulesActive()) return computePriceV2({ placement, floors: 4, install: 'auto', area: 'malang', ...ctx }, list);
   const lines = [];
   const multi = list.length > 1;
   list.forEach((it) => {
@@ -80,4 +96,81 @@ export function computePrice(placement, list) {
   });
   const total = lines.reduce((a, l) => a + l.amount, 0);
   return { lines, total };
+}
+
+// ================= RUMUS BARU =================
+const cm = (v) => Math.round(v).toLocaleString('id-ID');
+const rpx = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID');
+
+/** Harga produk signage + additional untuk satu item (rumus baru). */
+function itemLinesV2(R, view, m) {
+  const S = view.sign, L = view.led;
+  const type = SIGN_TYPES.find((t) => t.id === S.type);
+  const lines = [];
+  const mf = R.matFactor[S.front.mat] ?? 1;
+  const mfTxt = mf !== 1 ? ` · faktor ${matName(S.front.mat)} ×${mf}` : '';
+  if (type.group === 'box') {
+    const round = S.type === 'box_round';
+    const sides = S.sides === 2 ? 2 : 1;
+    const k = sides === 2 ? R.mult.box2 : R.mult.box1;
+    const size = round || S.type === 'box_square' ? S.width : Math.max(S.width, S.height);
+    const base = round ? R.base.box_round : R.base.box_rect;
+    lines.push({
+      label: `${type.name} ${sides} sisi`,
+      detail: `${rpx(base)} × ${cm(size)} cm (${round ? 'diameter' : 'sisi terpanjang'}) × ${k}${mfTxt}`,
+      amount: base * size * k * mf,
+    });
+  } else {
+    const base = type.lit ? R.base.letters_lit : R.base.letters_unlit;
+    const k = R.mult.letters;
+    lines.push({
+      label: `${type.name} ${m.letters} huruf × ${cm(S.letterHeight)} cm`,
+      detail: `${rpx(base)} × ${cm(S.letterHeight)} cm × ${m.letters} huruf${k !== 1 ? ' × ' + k : ''}${mfTxt}`,
+      amount: base * S.letterHeight * m.letters * k * mf,
+    });
+  }
+  // ---- biaya additional ----
+  const A = R.additional;
+  if (type.group !== 'box' && S.backPanel.on) lines.push({ label: 'Additional · panel latar ACP', detail: `${m2(m.area)} m²`, amount: m.area * A.backPanelPerM2, add: true });
+  if (type.lit && L.on && L.effect !== 'static') lines.push({ label: `Additional · controller efek ${(LED_EFFECTS.find((e) => e.id === L.effect) || {}).name}`, detail: '', amount: A.ledEffect, add: true });
+  if ((view.placement === 'rooftop' || view.placement === 'cafe') && view.construction.on && m.consArea) {
+    lines.push({ label: 'Additional · kerangka konstruksi besi', detail: `tinggi kaki ${view.construction.height} cm · bidang ${m2(m.consArea)} m²`, amount: A.constructionBase + m.consArea * A.constructionPerM2, add: true });
+  }
+  if (view.placement === 'pole' && m.poleH) lines.push({ label: 'Additional · tiang besi & pondasi', detail: `tinggi ${m2(m.poleH)} m`, amount: A.poleBase + m.poleH * A.polePerM, add: true });
+  if (view.placement === 'totem' && m.totemH) lines.push({ label: 'Additional · struktur totem', detail: `tinggi ${m2(m.totemH)} m`, amount: m.totemH * A.totemPerM, add: true });
+  return lines;
+}
+
+/** Biaya pemasangan reguler satu signage. */
+function installLine(R, ctx, m) {
+  const t = installTypeOf(ctx);
+  const I = R.install;
+  const name = (INSTALL_TYPES.find((x) => x.id === t) || {}).name;
+  if (t === 'indoor') {
+    const longest = m.size ? Math.max(m.size.w, m.size.h) : 0;
+    const extra = Math.max(0, Math.ceil(longest - I.indoorFreeM - 1e-6));
+    return { label: `Pemasangan · ${name}`, detail: extra ? `${rpx(I.indoor)} + ${extra} m × ${rpx(I.indoorPerM)} (lebih dari ${I.indoorFreeM} m)` : `ukuran ≤ ${I.indoorFreeM} m`, amount: I.indoor + extra * I.indoorPerM };
+  }
+  if (t === 'listplang') return { label: `Pemasangan · ${name}`, detail: '', amount: I.listplang };
+  const floors = ctx.placement === 'rooftop' ? ctx.floors : I.cafeFloors;
+  return { label: `Pemasangan · ${name}`, detail: `${floors} lantai × ${rpx(I.rooftopPerFloor)}`, amount: floors * I.rooftopPerFloor };
+}
+
+function computePriceV2(ctx, list) {
+  const R = RULES;
+  const lines = [];
+  const multi = list.length > 1;
+  list.forEach((it) => {
+    const g = multi ? it.name : null;
+    for (const l of itemLinesV2(R, it.view, it.metrics)) lines.push({ ...l, group: g });
+    lines.push({ ...installLine(R, ctx, it.metrics), group: g });
+  });
+  const g = multi ? 'Transport & pajak' : null;
+  const area = AREAS.find((a) => a.id === ctx.area) || AREAS[0];
+  lines.push({ label: `Transport · ${area.name}`, detail: '', amount: R.transport[area.id] || 0, group: g });
+  const sub = lines.reduce((a, l) => a + l.amount, 0);
+  lines.push({ label: `Pajak ${R.taxPct}%`, detail: `dari ${formatRp(sub)}`, amount: sub * R.taxPct / 100, group: g });
+  const total = lines.reduce((a, l) => a + l.amount, 0);
+  const missing = Object.entries(R.base).filter(([, v]) => !v).map(([k]) => k);
+  return { lines, total, rules: 'v2', missing };
 }

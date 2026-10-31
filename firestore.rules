@@ -22,5 +22,11 @@ service cloud.firestore {
 
       allow read, update, delete: if isAdmin();
     }
+
+    // Pengaturan harga: dibaca semua pengunjung (untuk estimasi), diubah hanya admin
+    match /settings/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

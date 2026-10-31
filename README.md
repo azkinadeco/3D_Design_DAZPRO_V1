@@ -30,6 +30,7 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Template** | 6 desain siap pakai (kafe, butik, klinik, gedung kantor, barbershop, night bar) — sekali klik lalu ubah teksnya |
 | **Jarak baca** | Perkiraan jarak nyaman & maksimal tulisan terbaca, dari tinggi huruf |
 | **Tampilan** | Panel edit bisa disembunyikan (tombol / tombol `P`), layar penuh (juga di iPhone), putar otomatis untuk presentasi |
+| **Rumus biaya** | Rumus baru diatur di admin → *Pengaturan harga*: huruf timbul (dasar × tinggi × jumlah huruf), neon box bulat (dasar × diameter × 2/3), neon box kotak (dasar × sisi terpanjang × 2/3), pemasangan reguler, transport per area, pajak, biaya additional. Selama belum disimpan & diaktifkan, situs memakai `PRICING` lama |
 | **Database** | Setiap pengajuan tersimpan di Firebase Firestore (koleksi `pengajuan`) |
 | **Admin** | `/admin.html` — login Google, statistik, filter status, cari, detail, catatan internal, chat WhatsApp dengan pesan siap kirim, buka desain di studio, export CSV |
 
@@ -88,7 +89,8 @@ Simpanan V1 (satu signage) otomatis dimigrasikan ke format multi-signage.
 1. Konfigurasi web ada di `FIREBASE_CONFIG` (`js/config.js`).
 2. Firestore Database dibuat (Production mode), Authentication → Google diaktifkan.
 3. Isi `firestore.rules` ditempel di Firestore → Rules → Publish. Email admin ada di fungsi `isAdmin()`.
-4. Domain situs (mis. `nama.vercel.app`) ditambahkan di Authentication → Settings → **Authorized domains** — tanpa ini login admin gagal (`auth/unauthorized-domain`).
+4. Rules juga mengizinkan semua pengunjung **membaca** `settings/pricing` (agar estimasi memakai harga terbaru) dan hanya admin yang bisa mengubahnya.
+5. Domain situs (mis. `nama.vercel.app`) ditambahkan di Authentication → Settings → **Authorized domains** — tanpa ini login admin gagal (`auth/unauthorized-domain`).
 
 ## Rencana berikutnya
 

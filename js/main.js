@@ -6,14 +6,14 @@ import { buildSign } from './signage.js';
 import { buildDims } from './dims.js';
 import { loadFont, loadFontIndex, drawTextFit } from './fonts.js';
 import { MAT_DEFAULT_COLOR } from './materials.js';
-import { computePrice, formatRp } from './pricing.js';
+import { computePrice, formatRp, setRules, rulesActive, installTypeOf } from './pricing.js';
 import { ICONS } from './icons.js';
 import { buildQuote } from './quote.js';
-import { saveSubmission } from './firebase.js';
+import { saveSubmission, getPriceRules } from './firebase.js';
 import { TEMPLATES } from './templates.js';
 import {
   BRAND, PLACEMENTS, SIGN_TYPES, MATERIALS, SWATCHES, LED_COLORS, LED_MODES, LED_EFFECTS, LED_DENSITY, TIMES, BG_PRESETS,
-  MAX_ITEMS, defaultState, defaultItem,
+  MAX_ITEMS, defaultState, defaultItem, INSTALL_TYPES, AREAS,
 } from './config.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -309,7 +309,7 @@ function describe(it) {
 
 function updateSummary() {
   if (!state.items.every((it) => runtime.get(it.id)?.res)) return;
-  pricing = computePrice(state.placement, state.items.map((it, i) => ({ name: itemName(it, i), view: viewOf(it), metrics: metricsOf(it) })));
+  pricing = computePrice(state.placement, state.items.map((it, i) => ({ name: itemName(it, i), view: viewOf(it), metrics: metricsOf(it) })), { floors: state.env.floors, install: state.install, area: state.area });
   $('#sum-price').textContent = formatRp(pricing.total);
   const pl = PLACEMENTS.find((p) => p.id === state.placement);
   const n = state.items.length;
@@ -428,6 +428,9 @@ function panelLokasi() {
   return `<h2 class="sec-title">Lokasi pemasangan</h2><p class="sec-sub">Pilih di mana signage akan dipasang.</p>
     <div class="group"><div class="cards">${PLACEMENTS.map((p) => `<button class="card ${S.placement === p.id ? 'active' : ''}" data-set="placement" data-value="${p.id}"><div class="ic">${ICONS[p.id]}</div><b>${p.name}</b><span>${p.desc}</span></button>`).join('')}</div></div>
     ${specific}
+    ${rulesActive() ? `<div class="group"><div class="lbl">Jenis pemasangan</div><div class="seg-ctl">${chip('install', 'auto', 'Otomatis', S.install)}${INSTALL_TYPES.map((t) => chip('install', t.id, t.name, S.install)).join('')}</div>
+      ${S.install === 'auto' ? `<p class="hint">Otomatis: ${esc(INSTALL_TYPES.find((t) => t.id === installTypeOf({ placement: S.placement, install: 'auto' })).name)}</p>` : ''}</div>
+    <div class="group"><div class="lbl">Area pemasangan (transport)</div><div class="seg-ctl">${AREAS.map((a) => chip('area', a.id, a.name, S.area)).join('')}</div></div>` : ''}
     <div class="divider"></div>
     <div class="group"><div class="lbl">Posisi${state.items.length > 1 ? `<span class="val">${esc(itemName(activeItem()))}</span>` : ' signage'}</div><p class="hint" style="margin:-4px 0 10px">Tip: seret langsung signage di layar 3D.</p>${posCtl}
       <button class="btn btn-sm btn-ghost" data-action="center">Kembalikan ke posisi awal</button></div>
@@ -449,6 +452,7 @@ function panelModel() {
   }
   return `<h2 class="sec-title">Model signage</h2><p class="sec-sub">Neon box atau huruf timbul — menyala maupun tidak.</p>
     <div class="group"><div class="cards">${SIGN_TYPES.map((x) => `<button class="card ${S.type === x.id ? 'active' : ''}" data-set="sign.type" data-value="${x.id}"><div class="ic">${ICONS[x.id]}</div><b>${x.name}</b><span>${x.desc}</span></button>`).join('')}</div></div>
+    ${t.group === 'box' ? `<div class="group"><div class="lbl">Jumlah sisi</div><div class="seg-ctl">${chip('sign.sides', 1, '1 sisi', S.sides === 2 ? 2 : 1)}${chip('sign.sides', 2, '2 sisi (depan–belakang)', S.sides === 2 ? 2 : 1)}</div><p class="hint">2 sisi: tulisan terlihat dari depan dan belakang — cocok untuk tiang & papan yang tegak lurus jalan.</p></div>` : ''}
     <div class="group"><div class="lbl">Ukuran<span class="val" id="model-size"></span></div>${dims}<div id="read-box">${readBlock(activeItem())}</div></div>
     ${t.group === 'box' ? '' : `<p class="hint">Lebar total mengikuti panjang teks & font. Lihat ukuran jadi di pojok kanan bawah layar.</p>`}`;
 }
@@ -570,6 +574,7 @@ function syncPosInputs() {
 
 // ---------- perubahan state ----------
 function routeFlags(path) {
+  if (path === 'install' || path === 'area') return {};
   if (path === 'time' || path.startsWith('bg.') || path === 'env.showCity') return { time: true };
   if (path === 'placement' || path.startsWith('env.') || path.startsWith('wall.')) return { hero: true, signs: 'all' };
   if (path.startsWith('sign.') || path.startsWith('led.')) return { signs: 'active' };
@@ -1004,7 +1009,7 @@ function itemSpecs(it) {
     ['Teks', S.text.replace(/\n/g, ' / ') || '—'],
     ['Font', (fontIndex.find((f) => f.id === S.font) || {}).name || S.font],
     ['Ukuran jadi', `${fmt(size.w)} × ${fmt(size.h)} m, tebal ${fmt(size.d * 100, 0)} cm`],
-    isBox ? ['Dimensi box', `${S.width} × ${S.type === 'box_rect' ? S.height : S.width} × ${S.depth} cm`] : ['Tinggi huruf', `${S.letterHeight} cm, return ${S.letterDepth} cm`],
+    isBox ? ['Dimensi box', `${S.width} × ${S.type === 'box_rect' ? S.height : S.width} × ${S.depth} cm · ${S.sides === 2 ? '2 sisi' : '1 sisi'}`] : ['Tinggi huruf', `${S.letterHeight} cm, return ${S.letterDepth} cm`],
     ['Bahan depan', `${matName(S.front.mat)} · ${S.front.color}`],
     ['Bahan samping', `${matName(S.side.mat)} · ${S.side.color}`],
   ];
@@ -1324,6 +1329,14 @@ function toast(msg) {
     try { state = normalize(await decodeDesign(m[1])); fromLink = true; } catch (_) { /* link rusak: pakai simpanan */ }
     try { history.replaceState(null, '', location.pathname + location.search); } catch (_) { /* abaikan */ }
   }
+  // pengaturan harga dari admin: pakai cache dulu, lalu ambil versi terbaru
+  setRules(store.get('dazpro.priceRules'));
+  getPriceRules().then((r) => {
+    store.set('dazpro.priceRules', r);
+    setRules(r);
+    updateSummary();
+    if (tab === 'lokasi') renderPanel();
+  }).catch(() => { /* offline / belum diatur: pakai cache atau rumus lama */ });
   try { fontIndex = await loadFontIndex(); } catch (_) { fontIndex = [{ id: 'poppins', name: 'Poppins Bold', cat: 'Modern' }]; }
   for (const it of state.items) if (!fontIndex.find((f) => f.id === it.sign.font)) it.sign.font = fontIndex[0].id;
   const ctx = { windowMats: [], lampMats: [], lampLights: [] };

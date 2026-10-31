@@ -67,3 +67,14 @@ export async function deleteSubmission(id) {
   const { fs, db } = await getDb();
   return fs.deleteDoc(fs.doc(db, COL, id));
 }
+
+// ---------- pengaturan harga (dibaca semua pengunjung, diubah admin) ----------
+export async function getPriceRules() {
+  const { fs, db } = await getDb();
+  const snap = await fs.getDoc(fs.doc(db, 'settings', 'pricing'));
+  return snap.exists() ? snap.data() : null;
+}
+export async function savePriceRules(data) {
+  const { fs, db } = await getDb();
+  return fs.setDoc(fs.doc(db, 'settings', 'pricing'), { ...data, updatedAt: fs.serverTimestamp() });
+}

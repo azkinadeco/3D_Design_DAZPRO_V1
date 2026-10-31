@@ -35,6 +35,11 @@
     </section>
 
     <section id="board" hidden>
+      <div class="adm-tabs" id="adm-tabs">
+        <button class="active" data-view="subs">Pengajuan</button>
+        <button data-view="price">Pengaturan harga</button>
+      </div>
+      <div id="view-subs">
       <div class="stats" id="stats"></div>
       <div class="toolbar">
         <div class="seg-ctl" id="filters"></div>
@@ -43,6 +48,8 @@
       </div>
       <div class="list" id="list"></div>
       <p class="muted small" id="empty" hidden>Belum ada pengajuan.</p>
+      </div>
+      <div id="view-price" hidden></div>
     </section>
     <p class="muted" id="state-msg">Memuat…</p>
   </main>

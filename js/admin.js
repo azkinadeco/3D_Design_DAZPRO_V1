@@ -1,5 +1,6 @@
 import { onAuth, signIn, signOutAdmin, redirectResult, watchSubmissions, updateSubmission, deleteSubmission, STATUSES } from './firebase.js';
 import { BRAND } from './config.js';
+import { mountPriceSettings } from './admin-price.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -141,6 +142,15 @@ $('#btn-login').addEventListener('click', async () => {
 if (inApp) { const w = $('#inapp'); if (w) w.hidden = false; }
 redirectResult().catch((e) => loginError(e.code));
 $('#logout').addEventListener('click', () => signOutAdmin());
+let priceMounted = false;
+$('#adm-tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-view]');
+  if (!b) return;
+  document.querySelectorAll('#adm-tabs button').forEach((x) => x.classList.toggle('active', x === b));
+  $('#view-subs').hidden = b.dataset.view !== 'subs';
+  $('#view-price').hidden = b.dataset.view !== 'price';
+  if (b.dataset.view === 'price' && !priceMounted) { priceMounted = true; mountPriceSettings($('#view-price'), toast); }
+});
 $('#export').addEventListener('click', () => { const l = visible(); if (!l.length) return toast('Tidak ada data untuk diekspor'); exportCsv(l); toast(`${l.length} pengajuan diekspor`); });
 
 function show(which, msg = '') {
@@ -153,6 +163,7 @@ onAuth(async (user) => {
   if (unsub) { unsub(); unsub = null; }
   $('#logout').hidden = !user;
   $('#who').textContent = user ? user.email : '';
+  window.__adminEmail = user ? user.email : '';
   if (!user) { show('login'); return; }
   show('board', 'Memuat pengajuan…');
   unsub = await watchSubmissions(

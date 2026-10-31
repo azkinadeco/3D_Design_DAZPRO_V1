@@ -48,7 +48,7 @@ export const TEMPLATES = [
     id: 'barber', name: 'Barbershop', desc: 'Neon box bulat di tiang pinggir jalan',
     preview: { bg: '#141414', fg: '#e11d2e', glow: '#ffffff', font: 'tektur', text: 'BARBER', box: true, round: true },
     state: () => make({ placement: 'pole', time: 'dusk', env: { poleHeight: 4.5, structColor: '#111318' } }, [item({
-      sign: { type: 'box_round', text: 'BARBER', font: 'tektur', width: 120, depth: 22, textColor: '#e11d2e', textScale: 70, front: { mat: 'acrylic', color: '#ffffff' }, side: { mat: 'acp', color: '#111318' } },
+      sign: { type: 'box_round', text: 'BARBER', font: 'tektur', width: 120, depth: 22, sides: 2, textColor: '#e11d2e', textScale: 70, front: { mat: 'acrylic', color: '#ffffff' }, side: { mat: 'acp', color: '#111318' } },
       led: { color: '#eef4ff', mode: 'front' },
     })]),
   },

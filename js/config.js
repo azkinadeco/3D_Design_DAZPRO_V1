@@ -9,7 +9,7 @@ export const BRAND = {
   // Nomor WhatsApp tujuan pengajuan desain (format internasional, tanpa +)
   whatsapp: '6285231346414',
   hours: '08.00–20.00 WIB',
-  area: 'Surabaya & seluruh Indonesia',
+  area: 'Malang & seluruh Indonesia',
 };
 
 // ---------- Firebase (kunci web ini memang publik; keamanan diatur di firestore.rules) ----------
@@ -127,6 +127,50 @@ export const BG_PRESETS = [
 
 export const MAX_ITEMS = 6;
 
+// ============================================================
+//  RUMUS BIAYA BARU (diatur dari halaman admin → Pengaturan harga)
+//  Nilai di sini hanya nilai awal. Rumus baru dipakai setelah admin
+//  menyimpan pengaturan (active: true); sebelum itu memakai PRICING lama.
+// ============================================================
+export const INSTALL_TYPES = [
+  { id: 'indoor', name: 'Indoor / di tembok' },
+  { id: 'listplang', name: 'Outdoor listplang' },
+  { id: 'rooftop', name: 'Outdoor atas bangunan' },
+];
+export const AREAS = [
+  { id: 'malang', name: 'Dalam kota Malang' },
+  { id: 'jatim', name: 'Luar kota, Jawa Timur' },
+  { id: 'jawa', name: 'Luar Jawa Timur, area Jawa' },
+  { id: 'luarjawa', name: 'Luar Jawa' },
+];
+// lokasi 3D → jenis pemasangan bawaan
+export const INSTALL_AUTO = { wall: 'indoor', cafe: 'rooftop', rooftop: 'rooftop', totem: 'listplang', pole: 'listplang' };
+
+export const PRICE_RULES_DEFAULT = {
+  active: false,
+  // harga dasar rumus (Rp)
+  base: {
+    letters_lit: 0,     // huruf timbul menyala: × tinggi huruf (cm) × jumlah huruf
+    letters_unlit: 0,   // huruf timbul non-lampu: × tinggi huruf (cm) × jumlah huruf
+    box_round: 0,       // neon box bulat: × diameter (cm) × pengali sisi
+    box_rect: 0,        // neon box kotak/persegi: × sisi terpanjang (cm) × pengali sisi
+  },
+  mult: { letters: 1, box1: 2, box2: 3 },
+  // faktor bahan muka (1 = tanpa tambahan)
+  matFactor: { acrylic: 1, acp: 1, stainless: 1, gold: 1, mirror: 1 },
+  install: { indoor: 750000, indoorFreeM: 2, indoorPerM: 250000, listplang: 1250000, rooftopPerFloor: 750000, cafeFloors: 1 },
+  transport: { malang: 500000, jatim: 1800000, jawa: 5000000, luarjawa: 15000000 },
+  taxPct: 10,
+  // biaya additional (di luar signage)
+  additional: {
+    constructionBase: 750000, constructionPerM2: 1150000,
+    poleBase: 2400000, polePerM: 420000,
+    totemPerM: 2350000,
+    backPanelPerM2: 850000,
+    ledEffect: 450000,
+  },
+};
+
 /** Satu signage dalam desain. */
 export function defaultItem(id = 1) {
   return {
@@ -144,6 +188,7 @@ export function defaultItem(id = 1) {
       front: { mat: 'acrylic', color: '#ffffff' },
       side: { mat: 'acp', color: '#15181e' },
       backPanel: { on: false, color: '#15181e', padding: 20 },
+      sides: 1,          // neon box: 1 sisi / 2 sisi (depan-belakang)
       logo: null,
     },
     led: { on: true, color: '#eef4ff', brightness: 75, mode: 'front', effect: 'static', density: 'standard', xray: false },
@@ -158,6 +203,8 @@ export function defaultState() {
     placement: 'cafe',
     time: 'dusk',
     showDims: false,
+    install: 'auto',   // jenis pemasangan (rumus biaya baru)
+    area: 'malang',    // area pengiriman / transport
     bg: { mode: 'sky', color: '#dfe4ea', image: null },
     wall: { image: null, width: 9, height: 5, color: '#d9d4cc', lockRatio: true },
     env: { floors: 4, poleHeight: 5.5, totemHeight: 6, structColor: '#2a2f37', showCity: true },
