@@ -7,7 +7,7 @@ export const BRAND = {
   name: 'DAZPRO',
   tagline: 'Signage Studio 3D',
   // Nomor WhatsApp tujuan pengajuan desain (format internasional, tanpa +)
-  whatsapp: '6281234567890',
+  whatsapp: '6285231346414',
   hours: '08.00–20.00 WIB',
   area: 'Surabaya & seluruh Indonesia',
 };
