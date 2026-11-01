@@ -124,6 +124,21 @@ const engine = new Engine(viewport, {
   onWalkView(v) { $('#walk-view').textContent = v === 'third' ? 'Orang pertama' : 'Orang ketiga'; },
 });
 
+// ---------- kualitas grafis ----------
+const quality = { mode: store.get('dazpro.quality', 'auto') };
+function weakDevice() {
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const mem = navigator.deviceMemory || 8, cores = navigator.hardwareConcurrency || 8;
+  return coarse && (mem <= 4 || cores <= 4);
+}
+function applyQuality() {
+  const level = quality.mode === 'auto' ? (quality.autoLow || weakDevice() ? 'low' : 'high') : quality.mode;
+  engine.setQuality(level);
+  if (quality.mode === 'auto' && level === 'high') {
+    engine.watchFps(() => { quality.autoLow = true; applyQuality(); toast('Grafis dialihkan ke mode ringan agar lebih lancar'); if (tab === 'lokasi') renderPanel(); });
+  } else engine.watchFps(null);
+}
+
 // ---------- pipeline build ----------
 let pending = {};
 let scheduled = false;
@@ -439,7 +454,10 @@ function panelLokasi() {
     <div class="group"><div class="lbl">Latar belakang</div><div class="seg-ctl">${BG_PRESETS.map((b) => chip('bg.mode', b.id, b.name, S.bg.mode)).join('')}</div></div>
     ${S.bg.mode === 'color' ? `<div class="group">${swatches('bg.color', ['#dfe4ea', '#ffffff', '#0f172a', '#1e293b', '#f5efe6', '#d1e7f5'])}</div>` : ''}
     ${S.bg.mode === 'image' ? `<div class="group">${upload('bg.image', 'Foto latar', !!S.bg.image, S.bg.image)}<p class="hint">Foto 360° (rasio 2:1) akan menjadi panorama; foto biasa jadi latar layar.</p></div>` : ''}
-    <div class="group">${toggle('env.showCity', 'Tampilkan lingkungan kota', 'Matikan untuk tampilan bersih dengan foto latar')}</div>`;
+    <div class="group">${toggle('env.showCity', 'Tampilkan lingkungan kota', 'Matikan untuk tampilan bersih dengan foto latar')}</div>
+    <div class="group"><div class="lbl">Kualitas grafis<span class="val">${quality.mode === 'auto' ? (engine.quality === 'low' ? 'otomatis: ringan' : 'otomatis: tinggi') : ''}</span></div>
+      <div class="seg-ctl">${[['auto', 'Otomatis'], ['high', 'Tinggi'], ['low', 'Ringan']].map(([id, n]) => `<button class="chip ${quality.mode === id ? 'active' : ''}" data-quality="${id}">${n}</button>`).join('')}</div>
+      <p class="hint">Pilih Ringan jika tampilan 3D terasa patah-patah di HP.</p></div>`;
 }
 
 function panelModel() {
@@ -713,6 +731,8 @@ $('#items').addEventListener('click', (e) => {
 
 // klik opsi (kartu, chip, swatch)
 $('#panel-body').addEventListener('click', (e) => {
+  const qb = e.target.closest('[data-quality]');
+  if (qb) { quality.mode = qb.dataset.quality; quality.autoLow = false; store.set('dazpro.quality', quality.mode); applyQuality(); renderPanel(); return; }
   const set = e.target.closest('[data-set]');
   if (set) {
     const v = set.dataset.value;
@@ -1402,6 +1422,7 @@ function toast(msg) {
   for (const it of state.items) if (!fontIndex.find((f) => f.id === it.sign.font)) it.sign.font = fontIndex[0].id;
   const ctx = { windowMats: [], lampMats: [], lampLights: [] };
   engine.setCity(buildCity(ctx), ctx);
+  applyQuality();
   await applyAssets();
   setPanel(store.get('dazpro.panel', 1) !== 0, false);
   renderViewportUI();

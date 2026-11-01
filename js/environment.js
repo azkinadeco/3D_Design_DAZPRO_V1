@@ -172,6 +172,7 @@ function building(w, h, d, { seed = 1, style = 'office', color, roof = true } = 
   m.castShadow = true; m.receiveShadow = true;
   g.add(m);
   if (roof) {
+    const n0 = g.children.length;
     // parapet + peralatan atap
     const pm = std(new THREE.Color(tf.base).multiplyScalar(0.82), 0.9);
     const ph = 0.7;
@@ -193,6 +194,7 @@ function building(w, h, d, { seed = 1, style = 'office', color, roof = true } = 
       g.add(tank);
       g.add(box(1.6, 1, 1.6, std('#55595f', 0.6, 0.5), tank.position.x, h / 2 + 0.5, tank.position.z));
     }
+    g.children.slice(n0 + 4).forEach((o) => { o.userData.detail = true; });
   }
   g.position.y = h / 2;
   return g;
@@ -247,6 +249,7 @@ function car(x, z, rotY, ctx, color) {
   }
   g.add(box(0.06, 0.16, 1.3, dark, 2.16, 0.42, 0, false));
   g.position.set(x, 0, z); g.rotation.y = rotY;
+  g.userData.detail = true;
   return g;
 }
 
@@ -257,6 +260,7 @@ function bench(x, z, rotY = 0) {
   for (let i = 0; i < 2; i++) g.add(box(1.6, 0.12, 0.04, wood, 0, 0.65 + i * 0.16, -0.24));
   for (const lx of [-0.7, 0.7]) { g.add(box(0.05, 0.45, 0.4, metal, lx, 0.225, -0.05)); g.add(box(0.05, 0.4, 0.05, metal, lx, 0.65, -0.24)); }
   g.position.set(x, 0.15, z); g.rotation.y = rotY;
+  g.userData.detail = true;
   return g;
 }
 
@@ -411,7 +415,7 @@ export function buildCity(ctx) {
   g.add(bench(-16.5, 4.5)); g.add(bench(17.5, 4.5));
   g.add(bench(-5, 16.6, Math.PI));
   const bol = std('#30343a', 0.5, 0.6);
-  for (let bx = -7; bx <= 7; bx += 2.8) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.8, 10), bol); b.position.set(bx, 0.55, 6.75); b.castShadow = true; g.add(b); }
+  for (let bx = -7; bx <= 7; bx += 2.8) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.8, 10), bol); b.position.set(bx, 0.55, 6.75); b.castShadow = true; b.userData.detail = true; g.add(b); }
   return g;
 }
 

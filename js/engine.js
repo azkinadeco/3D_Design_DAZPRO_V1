@@ -312,7 +312,9 @@ export class Engine {
   }
 
   _tick() {
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+    const raw = this.clock.getDelta();
+    this._fpsTick(raw);
+    const dt = Math.min(raw, 0.05);
     const time = this.clock.elapsedTime;
     if (this._camAnim) {
       const a = this._camAnim;
@@ -521,6 +523,34 @@ export class Engine {
     this.walk.view = this.walk.view === 'third' ? 'first' : 'third';
     this.avatar.group.visible = this.mode === 'walk' && this.walk.view === 'third';
     this.hooks.onWalkView && this.hooks.onWalkView(this.walk.view);
+  }
+
+  // ---------- kualitas grafis ----------
+  /** 'high' | 'low' — resolusi, bayangan, dan objek detail kota. */
+  setQuality(level) {
+    this.quality = level;
+    const low = level === 'low';
+    this.renderer.setPixelRatio(low ? Math.min(window.devicePixelRatio, 1) : Math.min(window.devicePixelRatio, 2));
+    const big = Math.min(window.innerWidth, window.innerHeight) > 700;
+    const size = low ? 1024 : big ? 4096 : 2048;
+    if (this.sun.shadow.mapSize.x !== size) {
+      this.sun.shadow.mapSize.set(size, size);
+      if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
+    }
+    this.roots.city.traverse((o) => { if (o.userData.detail) o.visible = !low; });
+    this.resize();
+  }
+  /** Pantau FPS; panggil cb sekali jika terlalu lambat. */
+  watchFps(cb) { this._fps = cb ? { t: 0, n: 0, slow: 0, cb } : null; }
+  _fpsTick(dt) {
+    const f = this._fps;
+    if (!f || document.hidden) return;
+    f.t += dt; f.n++;
+    if (f.t < 2) return;
+    const fps = f.n / f.t;
+    f.t = 0; f.n = 0;
+    f.slow = fps < 28 ? f.slow + 1 : 0;
+    if (f.slow >= 2) { const cb = f.cb; this._fps = null; cb(fps); }
   }
 
   /** Zoom kamera: k < 1 mendekat, k > 1 menjauh. */
