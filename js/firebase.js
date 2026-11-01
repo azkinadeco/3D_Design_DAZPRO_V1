@@ -97,3 +97,14 @@ export async function deletePortfolio(id) {
   const { fs, db } = await getDb();
   return fs.deleteDoc(fs.doc(db, 'portfolio', id));
 }
+
+// ---------- pengaturan umum (settings/<nama>) ----------
+export async function getSetting(name) {
+  const { fs, db } = await getDb();
+  const snap = await fs.getDoc(fs.doc(db, 'settings', name));
+  return snap.exists() ? snap.data() : null;
+}
+export async function saveSetting(name, data) {
+  const { fs, db } = await getDb();
+  return fs.setDoc(fs.doc(db, 'settings', name), { ...data, updatedAt: fs.serverTimestamp() });
+}

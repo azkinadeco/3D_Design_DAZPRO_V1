@@ -29,6 +29,8 @@ export const PLACEMENTS = [
   { id: 'cafe',    name: 'Atas Kafe', desc: 'Di atap bangunan kafe / ruko', icon: 'cafe' },
   { id: 'pole',    name: 'Tiang Jalan', desc: 'Tiang di pinggir jalan', icon: 'pole' },
   { id: 'wall',    name: 'Tempel Dinding', desc: 'Menempel di tembok (foto custom)', icon: 'wall' },
+  { id: 'mall',    name: 'Outlet Mall / Ruko', desc: 'Fasad toko indoor di mall', icon: 'mall' },
+  { id: 'booth',   name: 'Booth Kontainer', desc: 'Booth kontainer outdoor', icon: 'booth' },
 ];
 
 // ---------- Model signage ----------
@@ -114,7 +116,7 @@ export const PRICING = {
   neonFlexPerM: 165_000,
   neonBoardPerM2: 950_000,
   neonMin: 450_000,
-  install: { rooftop: 4_500_000, totem: 2_000_000, cafe: 1_500_000, pole: 1_750_000, wall: 650_000 },
+  install: { rooftop: 4_500_000, totem: 2_000_000, cafe: 1_500_000, pole: 1_750_000, wall: 650_000, mall: 850_000, booth: 1_200_000 },
 };
 
 export const TIMES = [
@@ -151,7 +153,9 @@ export const AREAS = [
   { id: 'luarjawa', name: 'Luar Jawa' },
 ];
 // lokasi 3D → jenis pemasangan bawaan
-export const INSTALL_AUTO = { wall: 'indoor', cafe: 'rooftop', rooftop: 'rooftop', totem: 'listplang', pole: 'listplang' };
+export const INSTALL_AUTO = { wall: 'indoor', cafe: 'rooftop', rooftop: 'rooftop', totem: 'listplang', pole: 'listplang', mall: 'indoor', booth: 'rooftop' };
+// lokasi yang memakai rangka besi di atas bangunan
+export const ROOF_PLACEMENTS = ['rooftop', 'cafe', 'booth'];
 
 export const PRICE_RULES_DEFAULT = {
   active: false,
@@ -199,6 +203,8 @@ export function defaultItem(id = 1) {
       sides: 1,          // neon box: 1 sisi / 2 sisi (depan-belakang)
       board: 'clear',    // neon flex: papan acrylic (clear/black/white/none)
       logo: null,
+      faceImage: null,   // neon box: gambar desain muka custom
+      faceText: false,   // tampilkan teks di atas gambar
     },
     led: { on: true, color: '#eef4ff', brightness: 75, mode: 'front', effect: 'static', density: 'standard', xray: false },
     construction: { on: true, height: 60, color: '#2a2f37' },
@@ -217,8 +223,44 @@ export function defaultState() {
     skipAdd: [],       // biaya additional yang tidak dipilih pelanggan ('<itemId>:<jenis>')
     bg: { mode: 'sky', color: '#dfe4ea', image: null },
     wall: { image: null, width: 9, height: 5, color: '#d9d4cc', lockRatio: true },
-    env: { floors: 4, poleHeight: 5.5, totemHeight: 6, structColor: '#2a2f37', showCity: true },
+    env: { floors: 4, poleHeight: 5.5, totemHeight: 6, structColor: '#2a2f37', showCity: true, mallW: 6, mallFascia: '#1f2329', boothL: 6, boothW: 2.4, boothColor: '#d9481f' },
     items: [defaultItem(1)],
     active: 0,
   };
 }
+
+// ---------- teks halaman utama (bisa diubah di admin → Konten beranda) ----------
+export const CONTENT_GROUPS = [
+  { title: "Bagian atas (hero)", fields: [
+    { key: 'heroEyebrow', label: "Beranda — label kecil di atas judul", type: 'short', def: "Konfigurator signage 3D" },
+    { key: 'heroTitle', label: "Beranda — judul utama", type: 'short', def: "Lihat signage usaha Anda" },
+    { key: 'heroTitleMuted', label: "Beranda — lanjutan judul (warna abu)", type: 'short', def: "sebelum dipasang." },
+    { key: 'heroSub', label: "Beranda — paragraf pembuka", type: 'long', def: "Pilih lokasi, model, font, bahan, dan lampu LED. Cek tampilan siang–malam, lalu kirim desainnya untuk penawaran." },
+    { key: 'ctaPrimary', label: "Tombol utama", type: 'short', def: "Mulai desain" },
+    { key: 'ctaSecondary', label: "Tombol kedua", type: 'short', def: "Pakai template" },
+  ] },
+  { title: "Cara kerja", fields: [
+    { key: 'how1Num', label: "Langkah 1 — label", type: 'short', def: "01 / DESAIN" },
+    { key: 'how1Title', label: "Langkah 1 — judul", type: 'short', def: "Atur signage Anda" },
+    { key: 'how1Text', label: "Langkah 1 — teks", type: 'long', def: "Pilih lokasi pemasangan, model neon box atau huruf timbul, font, ukuran, bahan muka & samping, serta warna LED." },
+    { key: 'how2Num', label: "Langkah 2 — label", type: 'short', def: "02 / LIHAT" },
+    { key: 'how2Title', label: "Langkah 2 — judul", type: 'short', def: "Cek dalam 3D" },
+    { key: 'how2Text', label: "Langkah 2 — teks", type: 'long', def: "Pindahkan posisi, bandingkan tampilan siang, senja, dan malam, atau jalan-jalan di sekitar lokasi dengan mode Jalan 3D." },
+    { key: 'how3Num', label: "Langkah 3 — label", type: 'short', def: "03 / AJUKAN" },
+    { key: 'how3Title', label: "Langkah 3 — judul", type: 'short', def: "Dapatkan penawaran" },
+    { key: 'how3Text', label: "Langkah 3 — teks", type: 'long', def: "Kirim desain beserta rincian ke WhatsApp kami. Tim DAZPRO akan mengonfirmasi harga final & jadwal survei." },
+  ] },
+  { title: "Galeri & produk", fields: [
+    { key: 'galleryEyebrow', label: "Galeri — label kecil", type: 'short', def: "Portofolio" },
+    { key: 'galleryTitle', label: "Galeri — judul", type: 'short', def: "Hasil pemasangan kami" },
+    { key: 'productsTitle', label: "Produk — judul", type: 'short', def: "Produk yang bisa Anda rancang" },
+  ] },
+  { title: "Footer", fields: [
+    { key: 'footerNote', label: "Footer — catatan", type: 'long', def: "Tampilan 3D bersifat ilustrasi. Ukuran mendekati skala asli; harga final dikonfirmasi setelah survei." },
+  ] },
+  { title: 'Kontak & layanan', fields: [
+    { key: 'whatsapp', label: 'Nomor WhatsApp admin (format 62…)', type: 'short', def: '6285231346414' },
+    { key: 'hours', label: 'Jam layanan', type: 'short', def: '08.00–20.00 WIB' },
+    { key: 'area', label: 'Area layanan', type: 'short', def: 'Malang & seluruh Indonesia' },
+  ] },
+];

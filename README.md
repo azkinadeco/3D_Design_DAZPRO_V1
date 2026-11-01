@@ -9,7 +9,7 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 
 | Area | Isi |
 |---|---|
-| **Lokasi** | Atas Gedung (jumlah lantai), Totem/Pylon (tinggi & warna), Atas Kafe, Tiang Pinggir Jalan (tinggi & warna), Tempel Dinding dengan **foto tembok custom** (lebar/tinggi tembok, kunci rasio foto) |
+| **Lokasi** | Atas Gedung (jumlah lantai), Totem/Pylon (tinggi & warna), Atas Kafe, Tiang Pinggir Jalan (tinggi & warna; huruf memakai rangka besi horizontal di belakang), **Outlet Mall/Ruko indoor** (lebar toko & warna list plang), **Booth Kontainer outdoor** (panjang, lebar, warna), Tempel Dinding dengan **foto tembok custom** (lebar/tinggi tembok, kunci rasio foto) |
 | **Latar** | Langit mengikuti waktu, studio abu, warna solid, atau **upload foto** (foto 360° 2:1 jadi panorama). Lingkungan kota bisa disembunyikan |
 | **Posisi** | **Seret signage langsung di 3D**, atau slider geser/maju-mundur/rotasi |
 | **Model** | Neon Box Kotak, Neon Box Persegi, Neon Box Bulat (1 / 2 sisi), Huruf Timbul Menyala, Huruf Timbul Non-Lampu, **Neon Flex** (selang LED neon di papan acrylic bening/hitam/putih) |
@@ -25,6 +25,8 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Urungkan / Ulangi** | Tombol di viewport + Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) |
 | **Bagikan link** | Desain dikodekan ke link (`#d=…`, terkompresi) — buka di perangkat lain tanpa server. Foto/logo tidak ikut link |
 | **Penawaran PDF** | Dokumen A4: nomor & tanggal penawaran, data pelanggan, visual 3D, tampak depan tiap signage, tabel spesifikasi, rincian biaya, ketentuan → Simpan sebagai PDF dari dialog cetak |
+| **Desain muka neon box** | Upload gambar desain sendiri untuk muka neon box (ikut menyala), opsional teks di atasnya |
+| **Konten beranda** | Admin → *Konten beranda*: ubah semua tulisan halaman utama, nomor WhatsApp, jam & area layanan |
 | **Ajukan** | Rincian estimasi (dikelompokkan per signage), simpan PNG, kirim ringkasan + estimasi ke WhatsApp |
 | **Proyek** | Simpan di perangkat, buka simpanan, export/import `.json`, autosave |
 | **Template** | 7 desain siap pakai (kafe, butik, klinik, gedung kantor, barbershop, neon flex dinding, night bar) — sekali klik lalu ubah teksnya |

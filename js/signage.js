@@ -102,7 +102,17 @@ export function buildSign(state, font, assets = {}) {
       ? { w: face.width * 0.7, h: face.height * 0.7 }
       : { w: face.width * 0.86, h: face.height * 0.8 };
     let area = { x: (face.width - inner.w) / 2, y: (face.height - inner.h) / 2, w: inner.w, h: inner.h };
-    if (assets.logo) {
+    const faceImg = assets.faceImage;
+    if (faceImg) {
+      // desain muka custom: gambar menutupi seluruh muka (cover), terpotong mengikuti bentuk box
+      const k = Math.max(face.width / faceImg.width, face.height / faceImg.height);
+      const iw = faceImg.width * k, ih = faceImg.height * k;
+      g.drawImage(faceImg, (face.width - iw) / 2, (face.height - ih) / 2, iw, ih);
+      gm.globalAlpha = 0.9;
+      gm.drawImage(faceImg, (face.width - iw) / 2, (face.height - ih) / 2, iw, ih);
+      gm.globalAlpha = 1;
+    }
+    if (assets.logo && !faceImg) {
       const img = assets.logo;
       const lh = Math.min(area.h, area.w * 0.4);
       const lw = lh * (img.width / img.height);
@@ -114,7 +124,7 @@ export function buildSign(state, font, assets = {}) {
       gm.globalAlpha = 1;
       if (hasText) area = { x: area.x + lw + area.w * 0.05, y: area.y, w: area.w - lw - area.w * 0.05, h: area.h };
     }
-    if (S.text.trim()) {
+    if (S.text.trim() && (!faceImg || S.faceText)) {
       const th = area.h * (S.textScale / 100);
       const fit = { x: area.x, y: area.y + (area.h - th) / 2, w: area.w, h: th };
       drawTextFit(g, font, S.text, fit, { spacing: S.spacing, color: S.textColor });

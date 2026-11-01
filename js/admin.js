@@ -2,6 +2,7 @@ import { onAuth, signIn, signOutAdmin, redirectResult, watchSubmissions, updateS
 import { BRAND } from './config.js';
 import { mountPriceSettings } from './admin-price.js';
 import { mountGallery } from './admin-gallery.js';
+import { mountContent } from './admin-content.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -193,11 +194,12 @@ $('#adm-tabs').addEventListener('click', (e) => {
   if (!b) return;
   const v = b.dataset.view;
   document.querySelectorAll('#adm-tabs button').forEach((x) => x.classList.toggle('active', x === b));
-  for (const k of ['subs', 'price', 'gallery']) $('#view-' + k).hidden = k !== v;
+  for (const k of ['subs', 'price', 'gallery', 'content']) $('#view-' + k).hidden = k !== v;
   if (mounted.has(v)) return;
   mounted.add(v);
   if (v === 'price') mountPriceSettings($('#view-price'), toast);
   if (v === 'gallery') mountGallery($('#view-gallery'), toast);
+  if (v === 'content') mountContent($('#view-content'), toast);
 });
 $('#export').addEventListener('click', () => { const l = visible(); if (!l.length) return toast('Tidak ada data untuk diekspor'); exportCsv(l); toast(`${l.length} pengajuan diekspor`); });
 

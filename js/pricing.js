@@ -1,5 +1,5 @@
 // Estimasi harga — aturan di config.js (PRICING)
-import { PRICING as P, SIGN_TYPES, MATERIALS, PLACEMENTS, LED_EFFECTS, PRICE_RULES_DEFAULT, INSTALL_TYPES, AREAS, INSTALL_AUTO } from './config.js';
+import { PRICING as P, SIGN_TYPES, MATERIALS, PLACEMENTS, LED_EFFECTS, PRICE_RULES_DEFAULT, INSTALL_TYPES, AREAS, INSTALL_AUTO, ROOF_PLACEMENTS } from './config.js';
 
 // ---------- rumus baru (dari admin) ----------
 let RULES = null;
@@ -65,7 +65,7 @@ export function computeItemLines(state, m) {
     }
   }
 
-  if ((state.placement === 'rooftop' || state.placement === 'cafe') && state.construction.on && m.consArea) {
+  if (ROOF_PLACEMENTS.includes(state.placement) && state.construction.on && m.consArea) {
     lines.push({ label: 'Konstruksi besi hollow', detail: `tinggi kaki ${state.construction.height} cm · bidang ${m2(m.consArea)} m²`, amount: P.constructionBase + m.consArea * P.constructionPerM2, add: 'construction' });
   }
   if (state.placement === 'pole' && m.poleH) {
@@ -136,7 +136,7 @@ function itemLinesV2(R, view, m) {
   const A = R.additional;
   if (type.group === 'letters' && S.backPanel.on) lines.push({ label: 'Additional · panel latar ACP', detail: `${m2(m.area)} m²`, amount: m.area * A.backPanelPerM2, add: 'backPanel' });
   if (type.lit && L.on && L.effect !== 'static') lines.push({ label: `Additional · controller efek ${(LED_EFFECTS.find((e) => e.id === L.effect) || {}).name}`, detail: '', amount: A.ledEffect, add: 'ledEffect' });
-  if ((view.placement === 'rooftop' || view.placement === 'cafe') && view.construction.on && m.consArea) {
+  if (ROOF_PLACEMENTS.includes(view.placement) && view.construction.on && m.consArea) {
     lines.push({ label: 'Additional · kerangka konstruksi besi', detail: `tinggi kaki ${view.construction.height} cm · bidang ${m2(m.consArea)} m²`, amount: A.constructionBase + m.consArea * A.constructionPerM2, add: 'construction' });
   }
   if (view.placement === 'pole' && m.poleH) lines.push({ label: 'Additional · tiang besi & pondasi', detail: `tinggi ${m2(m.poleH)} m`, amount: A.poleBase + m.poleH * A.polePerM, add: 'pole' });

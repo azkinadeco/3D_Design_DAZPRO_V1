@@ -110,12 +110,13 @@ export class Engine {
     u.sunDir.value.set(...t.sunPos).normalize(); u.sunCol.value.set(t.sun); u.sunAmt.value = t.sunAmt;
     u.cloudCol.value.set(t.cloud); u.cloudAmt.value = t.cloudAmt; u.stars.value = t.stars;
     this.hemi.color.set(t.hemiSky); this.hemi.groundColor.set(t.hemiGround); this.hemi.intensity = t.hemi;
-    this.sun.color.set(t.sun); this.sun.intensity = t.sunI;
+    this.sun.color.set(t.sun); this.sun.intensity = this.indoor ? t.sunI * 0.08 : t.sunI;
+    if (this.indoor) { this.hemi.color.set('#fff6ea'); this.hemi.groundColor.set('#8c8577'); this.hemi.intensity = 0.55; }
     this.sunOffset = new THREE.Vector3(...t.sunPos);
-    this.renderer.toneMappingExposure = t.exp;
-    this.bloom.strength = t.bloom;
-    this.bloom.threshold = t.thr;
-    this.scene.environmentIntensity = t.env;
+    this.renderer.toneMappingExposure = this.indoor ? 0.85 : t.exp;
+    this.bloom.strength = this.indoor ? 0.45 : t.bloom;
+    this.bloom.threshold = this.indoor ? 1.2 : t.thr;
+    this.scene.environmentIntensity = this.indoor ? 0.35 : t.env;
     this.windowLevel = t.windows;
     this.lampLevel = t.lamps;
     this._applyEnvLevels();
@@ -272,6 +273,7 @@ export class Engine {
     } else {
       pos = local.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(t);
       pos.y = Math.max(pos.y, 0.4);
+      if (this.camYMax) { pos.y = Math.min(pos.y, this.camYMax); if (this.camZMax) pos.z = Math.min(pos.z, this.camZMax); }
     }
     this._animateCam(pos, t.clone(), instant ? 0 : 0.9);
   }
@@ -326,6 +328,7 @@ export class Engine {
     }
     if (this.mode === 'walk') this._walkUpdate(dt);
     else this.controls.update();
+    if (this.camYMax && this.camera.position.y > this.camYMax) this.camera.position.y = this.camYMax;
     // matahari mengikuti area fokus agar bayangan tajam
     const ft = this.focusTarget || new THREE.Vector3();
     if (this.sunOffset) {

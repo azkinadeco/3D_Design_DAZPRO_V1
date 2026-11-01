@@ -41,6 +41,8 @@ export const ICONS = {
   cafe: big('<path d="M4 35h56"/><rect x="12" y="16" width="40" height="19" rx="1"/><path d="M10 21h44l-3-4H13z"/><path d="M16 25h20v10M42 25h6v10"/><rect x="20" y="6" width="24" height="7" rx="1" stroke="#2f5bff"/><path d="M24 13v3M40 13v3"/>'),
   pole: big('<path d="M4 31h56M4 35h56"/><path d="M32 31V15"/><rect x="20" y="4" width="24" height="11" rx="1" stroke="#2f5bff"/>'),
   wall: big('<rect x="6" y="3" width="52" height="30" rx="1"/><path d="M6 11h52M6 19h52M6 27h52M18 3v8M34 3v8M50 3v8M26 11v8M42 11v8M18 19v8M34 19v8M50 19v8"/><rect x="18" y="13" width="28" height="8" rx="1" stroke="#2f5bff" fill="#eef2ff"/>'),
+  mall: big('<path d="M4 4h56M4 35h56"/><path d="M8 4v31M56 4v31"/><rect x="14" y="8" width="36" height="6" rx="1" stroke="#2f5bff"/><path d="M14 16h36v19M14 16v19M26 22v13M38 22v13"/><path d="M20 4v4M44 4v4" opacity=".5"/>'),
+  booth: big('<path d="M4 35h56"/><rect x="10" y="12" width="44" height="21" rx="1"/><path d="M16 12v21M22 12v21M42 12v21M48 12v21" opacity=".45"/><path d="M24 18h16v8H24zM22 18l-4-4h28l-4 4"/><rect x="20" y="3" width="24" height="7" rx="1" stroke="#2f5bff"/>'),
   box_rect: big('<rect x="10" y="9" width="44" height="18" rx="2"/><path d="M18 18h28" stroke="#2f5bff"/>'),
   box_square: big('<rect x="20" y="4" width="24" height="28" rx="2"/><path d="M26 18h12" stroke="#2f5bff"/>'),
   box_round: big('<circle cx="32" cy="18" r="14"/><path d="M25 18h14" stroke="#2f5bff"/>'),
