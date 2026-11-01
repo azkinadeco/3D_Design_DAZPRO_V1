@@ -345,6 +345,10 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.35; font-wei
 .load-item small { color: var(--muted); display: block; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; z-index: 110; box-shadow: var(--shadow); }
 
+.rec-badge { position: absolute; top: 62px; left: 50%; transform: translateX(-50%); z-index: 5; display: inline-flex; align-items: center; gap: 8px; background: rgba(15, 23, 42, .78); color: #fff; font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
+.rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; animation: pulse 1.2s infinite; }
+.icon-btn.recording { background: #ef4444 !important; color: #fff; }
+
 /* ---------- galeri ---------- */
 .gallery { max-width: 1560px; margin: 56px auto 0; padding: 0 clamp(16px, 3vw, 32px); }
 .gal-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }

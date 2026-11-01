@@ -34,6 +34,7 @@ export const ICONS = {
   eye: s('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
   zoomIn: s('<path d="M12 5v14M5 12h14"/>'),
   zoomOut: s('<path d="M5 12h14"/>'),
+  video: s('<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>'),
   upload: s('<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'),
   // ilustrasi kartu lokasi
   rooftop: big('<rect x="18" y="12" width="28" height="23" rx="1"/><path d="M22 17h4M30 17h4M38 17h4M22 22h4M30 22h4M38 22h4M22 27h4M30 27h4M38 27h4"/><path d="M24 12V9M40 12V9M24 9l16 0"/><rect x="21" y="2" width="22" height="7" rx="1" stroke="#2f5bff"/>'),

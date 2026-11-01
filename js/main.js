@@ -906,6 +906,7 @@ function renderViewportUI() {
   $('#btn-shot').innerHTML = ICONS.camera;
   $('#btn-full').innerHTML = $('#studio').classList.contains('is-full') ? ICONS.shrink : ICONS.expand;
   $('#btn-spin').innerHTML = ICONS.spin;
+  $('#btn-rec').innerHTML = ICONS.video;
   $('#panel-toggle').innerHTML = $('#studio').classList.contains('panel-off') ? ICONS.sidebarOff : ICONS.sidebar;
   $('#btn-zin').innerHTML = ICONS.zoomIn;
   $('#btn-zout').innerHTML = ICONS.zoomOut;
@@ -1028,6 +1029,47 @@ function setSpin(on) {
   $('#btn-spin').classList.toggle('on', on);
 }
 $('#btn-spin').addEventListener('click', () => { const on = !engine.controls.autoRotate; if (on && engine.mode === 'walk') engine.exitWalk(); setSpin(on); toast(on ? 'Putar otomatis aktif' : 'Putar otomatis berhenti'); });
+
+// ---------- rekam video 360° ----------
+let recording = false;
+$('#btn-rec').addEventListener('click', async () => {
+  if (recording) return;
+  const canvas = engine.renderer.domElement;
+  if (!canvas.captureStream || !window.MediaRecorder) { toast('Browser ini belum mendukung rekam video — coba Chrome'); return; }
+  // WebM didahulukan di Chrome/Android (paling andal); Safari/iPhone memakai MP4
+  const types = ['video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
+  const type = types.find((t) => MediaRecorder.isTypeSupported(t));
+  if (!type) { toast('Format video tidak didukung browser ini'); return; }
+  if (engine.mode === 'walk') engine.exitWalk();
+  recording = true;
+  const btn = $('#btn-rec'); btn.classList.add('recording');
+  $('#rec-badge').hidden = false;
+  const prevSpeed = engine.controls.autoRotateSpeed;
+  engine.watchFps(null); // jangan ganti kualitas (ukuran kanvas) saat merekam
+  engine.cameraPreset('hero');
+  await new Promise((r) => setTimeout(r, 900));
+  setSpin(true); engine.controls.autoRotateSpeed = 6; // satu putaran ±10 detik
+  const recordOnce = async (secs) => {
+    const stream = canvas.captureStream(30);
+    const rec = new MediaRecorder(stream, { mimeType: type });
+    const chunks = [];
+    rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    const done = new Promise((r) => (rec.onstop = r));
+    rec.start(250);
+    for (let i = secs; i > 0; i--) { $('#rec-txt').textContent = `Merekam… ${i}`; await new Promise((r) => setTimeout(r, 1000)); }
+    rec.stop(); await done;
+    stream.getTracks().forEach((t) => t.stop());
+    return new Blob(chunks, { type: type.split(';')[0] });
+  };
+  let blob = await recordOnce(8);
+  if (blob.size < 2000) blob = await recordOnce(8); // encoder kadang belum siap di percobaan pertama
+  setSpin(false); engine.controls.autoRotateSpeed = prevSpeed;
+  applyQuality();
+  btn.classList.remove('recording'); $('#rec-badge').hidden = true; recording = false;
+  if (blob.size < 2000) { toast('Video gagal direkam di browser ini — coba Chrome versi terbaru'); return; }
+  download(URL.createObjectURL(blob), `${slug()}-360.${type.includes('mp4') ? 'mp4' : 'webm'}`);
+  toast('Video 360° tersimpan');
+});
 
 // petunjuk hilang setelah interaksi pertama / beberapa detik
 const fadeHint = () => $('#vp-hint').classList.add('fade');
