@@ -132,6 +132,8 @@ export const BG_PRESETS = [
 
 export const MAX_ITEMS = 6;
 
+export const PORTFOLIO_CATS = ['Huruf Timbul', 'Neon Box', 'Neon Flex', 'Konstruksi', 'Lainnya'];
+
 // ============================================================
 //  RUMUS BIAYA BARU (diatur dari halaman admin → Pengaturan harga)
 //  Nilai di sini hanya nilai awal. Rumus baru dipakai setelah admin

@@ -11,6 +11,7 @@ import { ICONS } from './icons.js';
 import { buildQuote } from './quote.js';
 import { saveSubmission, getPriceRules } from './firebase.js';
 import { TEMPLATES } from './templates.js';
+import { initGallery } from './gallery.js';
 import {
   BRAND, PLACEMENTS, SIGN_TYPES, MATERIALS, SWATCHES, LED_COLORS, LED_MODES, LED_EFFECTS, LED_DENSITY, TIMES, BG_PRESETS,
   MAX_ITEMS, defaultState, defaultItem, INSTALL_TYPES, AREAS,
@@ -1388,6 +1389,7 @@ function toast(msg) {
     try { state = normalize(await decodeDesign(m[1])); fromLink = true; } catch (_) { /* link rusak: pakai simpanan */ }
     try { history.replaceState(null, '', location.pathname + location.search); } catch (_) { /* abaikan */ }
   }
+  initGallery();
   // pengaturan harga dari admin: pakai cache dulu, lalu ambil versi terbaru
   setRules(store.get('dazpro.priceRules'));
   getPriceRules().then((r) => {

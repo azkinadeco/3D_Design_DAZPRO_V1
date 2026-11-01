@@ -78,3 +78,22 @@ export async function savePriceRules(data) {
   const { fs, db } = await getDb();
   return fs.setDoc(fs.doc(db, 'settings', 'pricing'), { ...data, updatedAt: fs.serverTimestamp() });
 }
+
+// ---------- galeri proyek (dibaca semua, dikelola admin) ----------
+export async function listPortfolio() {
+  const { fs, db } = await getDb();
+  const snap = await fs.getDocs(fs.query(fs.collection(db, 'portfolio'), fs.orderBy('order', 'asc'), fs.limit(120)));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+export async function addPortfolio(data) {
+  const { fs, db } = await getDb();
+  return fs.addDoc(fs.collection(db, 'portfolio'), { ...data, createdAt: fs.serverTimestamp() });
+}
+export async function updatePortfolio(id, patch) {
+  const { fs, db } = await getDb();
+  return fs.updateDoc(fs.doc(db, 'portfolio', id), patch);
+}
+export async function deletePortfolio(id) {
+  const { fs, db } = await getDb();
+  return fs.deleteDoc(fs.doc(db, 'portfolio', id));
+}

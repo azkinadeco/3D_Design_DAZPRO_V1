@@ -28,5 +28,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // Galeri proyek: tampil di beranda, dikelola admin
+    match /portfolio/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

@@ -28,6 +28,7 @@
     </a>
     <nav class="topnav">
       <a href="#studio">Studio 3D</a>
+      <a href="#galeri" id="nav-galeri" hidden>Galeri</a>
       <a href="#cara-kerja">Cara kerja</a>
       <a href="#produk">Produk</a>
       <a class="btn btn-sm btn-ghost" id="wa-top" target="_blank" rel="noopener">Konsultasi</a>
@@ -143,6 +144,14 @@
       <div class="how-item"><span class="num">03 / AJUKAN</span><h3>Dapatkan penawaran</h3><p>Kirim desain beserta rincian ke WhatsApp kami. Tim DAZPRO akan mengonfirmasi harga final &amp; jadwal survei.</p></div>
     </section>
 
+    <section class="gallery" id="galeri" hidden>
+      <div class="gal-head">
+        <div><p class="eyebrow"><span class="dot"></span> Portofolio</p><h2>Hasil pemasangan kami</h2></div>
+        <div class="seg-ctl" id="gal-filter"></div>
+      </div>
+      <div class="gal-grid" id="gal-grid"></div>
+    </section>
+
     <section class="products" id="produk">
       <h2>Produk yang bisa Anda rancang</h2>
       <div class="prod-grid">
@@ -210,6 +219,13 @@
       <div class="drawer-head"><div><h3>Template desain</h3><p class="muted small" style="margin:2px 0 0">Mulai cepat dari contoh, lalu ubah teks, warna, dan ukurannya.</p></div><button class="icon-btn" data-close aria-label="Tutup">✕</button></div>
       <div class="tpl-grid" id="tpl-grid"></div>
     </div>
+  </div>
+
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lb-btn lb-close" data-lb="close" aria-label="Tutup">✕</button>
+    <button class="lb-btn lb-prev" data-lb="prev" aria-label="Sebelumnya">‹</button>
+    <figure><img id="lb-img" alt="" /><figcaption id="lb-cap"></figcaption></figure>
+    <button class="lb-btn lb-next" data-lb="next" aria-label="Berikutnya">›</button>
   </div>
 
   <div id="quote" aria-hidden="true"></div>

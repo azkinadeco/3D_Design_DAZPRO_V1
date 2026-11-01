@@ -1,6 +1,7 @@
 import { onAuth, signIn, signOutAdmin, redirectResult, watchSubmissions, updateSubmission, deleteSubmission, STATUSES } from './firebase.js';
 import { BRAND } from './config.js';
 import { mountPriceSettings } from './admin-price.js';
+import { mountGallery } from './admin-gallery.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -186,14 +187,17 @@ $('#notif').addEventListener('click', async () => {
   notifButton();
   if (Notification.permission === 'granted') { toast('Notifikasi aktif — biarkan halaman admin tetap terbuka'); beep(); }
 });
-let priceMounted = false;
+const mounted = new Set();
 $('#adm-tabs').addEventListener('click', (e) => {
   const b = e.target.closest('[data-view]');
   if (!b) return;
+  const v = b.dataset.view;
   document.querySelectorAll('#adm-tabs button').forEach((x) => x.classList.toggle('active', x === b));
-  $('#view-subs').hidden = b.dataset.view !== 'subs';
-  $('#view-price').hidden = b.dataset.view !== 'price';
-  if (b.dataset.view === 'price' && !priceMounted) { priceMounted = true; mountPriceSettings($('#view-price'), toast); }
+  for (const k of ['subs', 'price', 'gallery']) $('#view-' + k).hidden = k !== v;
+  if (mounted.has(v)) return;
+  mounted.add(v);
+  if (v === 'price') mountPriceSettings($('#view-price'), toast);
+  if (v === 'gallery') mountGallery($('#view-gallery'), toast);
 });
 $('#export').addEventListener('click', () => { const l = visible(); if (!l.length) return toast('Tidak ada data untuk diekspor'); exportCsv(l); toast(`${l.length} pengajuan diekspor`); });
 
