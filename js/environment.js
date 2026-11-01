@@ -703,6 +703,25 @@ function cladMat(c) {
   if (!cladCache.has(k)) { const t = P.marbleTexture(c[0], c[1]); t.repeat.set(1, 2); t.userData.shared = true; cladCache.set(k, new THREE.MeshPhysicalMaterial({ map: t, roughness: 0.18, clearcoat: 0.5, clearcoatRoughness: 0.2 })); }
   return cladCache.get(k);
 }
+const backdropCache = new Map();
+function backdropMat(inner) {
+  if (backdropCache.has(inner)) return backdropCache.get(inner);
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 256); grd.addColorStop(0, '#fff4e2'); grd.addColorStop(1, inner); g.fillStyle = grd; g.fillRect(0, 0, 512, 256);
+  g.fillStyle = '#2a2622'; g.fillRect(40, 30, 432, 170);
+  for (let cx = 0; cx < 4; cx++) for (let r = 0; r < 3; r++) {
+    const x = 52 + cx * 106, y = 40 + r * 54;
+    g.fillStyle = '#efe6d8'; g.fillRect(x, y, 94, 46);
+    g.fillStyle = '#c9a35a'; g.fillRect(x, y + 44, 94, 3);
+    g.fillStyle = ['#111', '#8a5a2b', '#d8b56a', '#8a1c1c', '#f4efe6'][(cx + r) % 5]; g.fillRect(x + 30, y + 18, 34, 24);
+  }
+  g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(150, 200, 212, 56);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.userData.shared = true;
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.8, emissive: new THREE.Color('#ffffff'), emissiveMap: t, emissiveIntensity: 0.25 });
+  backdropCache.set(inner, m);
+  return m;
+}
 function shopFront(W, opts, ctx) {
   const g = new THREE.Group();
   const H = 4.4, fasciaY = 2.95, depth = 6;
@@ -731,6 +750,14 @@ function shopFront(W, opts, ctx) {
   g.add(box(gw, 0.05, 0.06, fr, 0, 0.025, -0.05));
   for (const x of [-0.6, 0.6]) g.add(box(0.035, fasciaY - 0.1, 0.06, fr, x, (fasciaY - 0.1) / 2, -0.05));
   for (const x of [-0.08, 0.08]) g.add(box(0.025, 0.9, 0.05, gold, x, 1.1, 0.01));
+  if (opts.simple) {
+    // toko jauh: cukup fasad + interior bergambar (ringan)
+    g.add(box(W - pier * 2, fasciaY - 0.08, 0.05, backdropMat(opts.inner || '#f3ece2'), 0, (fasciaY - 0.08) / 2 + 0.04, -1.6, false));
+    g.add(box(W - pier * 2, 0.02, 1.6, std('#efe9df', 0.3), 0, 0.01, -0.8, false));
+    for (const s of [-1, 1]) g.add(box(0.05, fasciaY, 1.6, std(opts.inner || '#f3ece2', 0.9), s * (W / 2 - pier), fasciaY / 2, -0.8, false));
+    g.add(box(W - pier * 2, 0.05, 1.6, std('#f7f4ef', 0.95), 0, fasciaY - 0.02, -0.8, false));
+    return g;
+  }
   // interior
   const iw = W - 0.2;
   if (!shopFront.floor) { const t = P.marbleTexture('#f2ede5'); t.repeat.set(2, 2); t.userData.shared = true; shopFront.floor = new THREE.MeshPhysicalMaterial({ map: t, roughness: 0.15, clearcoat: 0.5 }); }
@@ -780,9 +807,11 @@ function buildMall(g, state, ctx) {
   const sky = new THREE.MeshStandardMaterial({ color: '#fff', emissive: new THREE.Color('#eef4ff'), emissiveIntensity: 0.55 });
   g.add(box(56, 0.03, 2.4, sky, 0, ceilH - 0.01, corridor / 2, false));
   const down = new THREE.MeshStandardMaterial({ color: '#fff', emissive: new THREE.Color('#fff6e8'), emissiveIntensity: 0.9 });
-  for (let x = -26; x <= 26; x += 3) for (const z of [2.2, corridor - 2.2]) { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 14), down); d.position.set(x, ceilH - 0.01, z); g.add(d); }
+  { const pts = []; for (let x = -26; x <= 26; x += 3) for (const z of [2.2, corridor - 2.2]) pts.push([x, z]);
+    const im = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 14), down, pts.length); const m4 = new THREE.Matrix4();
+    pts.forEach(([x, z], i) => { m4.makeTranslation(x, ceilH - 0.01, z); im.setMatrixAt(i, m4); }); g.add(im); }
   for (const [lx, lz] of [[-7, 3], [7, 3], [0, 6.5], [-14, 6.5], [14, 6.5]]) { const l = new THREE.PointLight('#fff1dc', 5, 13, 1.8); l.position.set(lx, ceilH - 0.6, lz); g.add(l); }
-  for (let x = -20; x <= 20; x += 10) { const c = P.chandelier(ctx, 0.9); c.position.set(x + 5, ceilH, corridor / 2); g.add(c); }
+  for (const x of [-5, 5]) { const c = P.chandelier(ctx, 0.9); c.position.set(x, ceilH, corridor / 2); g.add(c); }
   // deretan butik: toko utama (signage pelanggan) di tengah
   g.add(shopFront(W, { fascia: state.env.mallFascia }, ctx));
   let xr = W / 2 + 0.7, xl = -W / 2 - 0.7;
@@ -790,8 +819,9 @@ function buildMall(g, state, ctx) {
   for (let i = 0; i < 3; i++) {
     const bR = BOUTIQUES[order[i * 2]], bL = BOUTIQUES[order[i * 2 + 1]];
     const wR = 5.5 + (i % 2), wL = 6 - (i % 2) * 0.5;
-    const r = shopFront(wR, { brand: bR.name, clad: bR.clad, fg: bR.fg, inner: bR.inner }, ctx); r.position.x = xr + wR / 2; g.add(r); xr += wR + 0.7;
-    const l = shopFront(wL, { brand: bL.name, clad: bL.clad, fg: bL.fg, inner: bL.inner }, ctx); l.position.x = xl - wL / 2; g.add(l); xl -= wL + 0.7;
+    const simple = i > 0; // hanya toko tepat di samping toko utama yang detail
+    const r = shopFront(wR, { brand: bR.name, clad: bR.clad, fg: bR.fg, inner: bR.inner, simple }, ctx); r.position.x = xr + wR / 2; g.add(r); xr += wR + 0.7;
+    const l = shopFront(wL, { brand: bL.name, clad: bL.clad, fg: bL.fg, inner: bL.inner, simple }, ctx); l.position.x = xl - wL / 2; g.add(l); xl -= wL + 0.7;
   }
   // kolom marmer + cincin emas di antara toko
   const colMat = cladMat(['#f2ede5', 'rgba(150,130,110,']);
@@ -807,7 +837,7 @@ function buildMall(g, state, ctx) {
   // sisi seberang koridor
   const opp = new THREE.Group();
   let xo = -27;
-  for (let i = 0; i < 6; i++) { const b = BOUTIQUES[(i + 3) % 6]; const w = 5.6; const sf = shopFront(w, { brand: b.name, clad: b.clad, fg: b.fg, inner: b.inner }, ctx); sf.position.x = xo + w / 2; opp.add(sf); xo += w + 1.2; }
+  for (let i = 0; i < 6; i++) { const b = BOUTIQUES[(i + 3) % 6]; const w = 5.6; const sf = shopFront(w, { brand: b.name, clad: b.clad, fg: b.fg, inner: b.inner, simple: true }, ctx); sf.position.x = xo + w / 2; opp.add(sf); xo += w + 1.2; }
   opp.rotation.y = Math.PI; opp.position.z = corridor;
   g.add(opp);
   for (const x of [-31, 31]) g.add(box(0.3, ceilH, corridor + 2, std('#ece8e2', 0.9), x, ceilH / 2, corridor / 2));
@@ -816,7 +846,7 @@ function buildMall(g, state, ctx) {
   for (const x of [-5, 5]) {
     const b = new THREE.Mesh(new RoundedBoxGeometry(1.8, 0.42, 0.6, 3, 0.1), std('#5b3a24', 0.55)); b.position.set(x, 0.21, corridor / 2); b.castShadow = true; g.add(b);
   }
-  const shoppers = [[-3.2, 2.6, 0.4, 'walk'], [3.8, 3.4, -2.6, 'walk'], [-8.5, 6.8, 3.0, 'stand'], [8.2, 7.2, -0.6, 'walk'], [1.2, 7.8, 2.2, 'stand'], [-14, 4.2, 1.2, 'walk'], [15, 5.2, -1.8, 'stand'], [-5.4, 5.0, 0, 'sit'], [5.3, 5.0, Math.PI, 'sit']];
+  const shoppers = [[-3.2, 2.6, 0.4, 'walk'], [3.8, 3.4, -2.6, 'walk'], [-8.5, 6.8, 3.0, 'stand'], [8.2, 7.2, -0.6, 'walk'], [-5.4, 5.0, 0, 'sit'], [5.3, 5.0, Math.PI, 'sit']];
   for (const [x, z, r, pose] of shoppers) { const h = P.human({ pose, bag: pose !== 'sit' && rnd() > 0.35 }); h.position.set(x, pose === 'sit' ? -0.03 : 0, z); h.rotation.y = r; g.add(h); }
   g.traverse((o) => { if (o.isMesh) { if (!o.userData.keepShadow) o.castShadow = false; o.receiveShadow = true; } });
   g.userData.indoor = true;
