@@ -34,7 +34,7 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Tampilan** | Panel edit bisa disembunyikan (tombol / tombol `P`), layar penuh (juga di iPhone), putar otomatis untuk presentasi |
 | **Rumus biaya** | Rumus baru diatur di admin → *Pengaturan harga*: huruf timbul (dasar × tinggi × jumlah huruf), neon box bulat (dasar × diameter × 2/3), neon box kotak (dasar × sisi terpanjang × 2/3), pemasangan reguler, transport per area, pajak, biaya additional. Selama belum disimpan & diaktifkan, situs memakai `PRICING` lama |
 | **Galeri proyek** | Foto hasil pemasangan dikelola di admin → *Galeri* (unggah, kategori, urutan, tampil/sembunyi); tampil di beranda dengan filter & lightbox |
-| **Kualitas grafis** | Otomatis / Tinggi / Ringan (tab Lokasi). Otomatis memantau FPS dan beralih ke Ringan di perangkat lambat |
+| **Kualitas grafis** | Otomatis / Tinggi / Ringan (tab Lokasi). Tinggi: ambient occlusion (GTAO), refleksi langit, mobil melintas, pejalan kaki, bayangan 4096. Otomatis memantau FPS dan beralih ke Ringan di perangkat lambat |
 | **Aplikasi (PWA)** | Bisa dipasang di HP/PC (tombol *Pasang aplikasi*), tetap terbuka saat offline setelah kunjungan pertama |
 | **Database** | Setiap pengajuan tersimpan di Firebase Firestore (koleksi `pengajuan`) |
 | **Admin** | `/admin.html` — login Google, notifikasi + suara saat pengajuan baru masuk, statistik, filter status, cari, detail, catatan internal, chat WhatsApp dengan pesan siap kirim, buka desain di studio, export CSV |

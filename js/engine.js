@@ -5,6 +5,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { makeSky } from './environment.js';
 
@@ -40,8 +41,9 @@ export class Engine {
     this._baseFov = 45;
     this.camera.position.set(8, 4, 18);
 
-    const pm = new THREE.PMREMGenerator(r);
-    this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+    const pm = (this.pmrem = new THREE.PMREMGenerator(r));
+    this.roomEnv = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environment = this.roomEnv;
 
     this.sky = makeSky();
     this.scene.add(this.sky);
@@ -69,6 +71,14 @@ export class Engine {
 
     this.composer = new EffectComposer(r);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    // ambient occlusion (hanya kualitas tinggi)
+    this.gtao = new GTAOPass(this.scene, this.camera, 256, 256);
+    this.gtao.output = GTAOPass.OUTPUT.Default;
+    this.gtao.blendIntensity = 1;
+    this.gtao.updateGtaoMaterial({ radius: 0.7, distanceExponent: 1.4, thickness: 1.2, scale: 1, samples: 16, distanceFallOff: 1 });
+    this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 12 });
+    this.gtao.enabled = false;
+    this.composer.addPass(this.gtao);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.3, 1.0);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -117,6 +127,9 @@ export class Engine {
     this.bloom.strength = this.indoor ? 0.45 : t.bloom;
     this.bloom.threshold = this.indoor ? 1.2 : t.thr;
     this.scene.environmentIntensity = this.indoor ? 0.35 : t.env;
+    const useSky = !this.indoor && (!bg || bg.mode === 'sky');
+    this.scene.environment = useSky ? this._skyEnvironment(t) : this.roomEnv;
+    if (useSky) this.scene.environmentIntensity = t.env * 1.6;
     this.windowLevel = t.windows;
     this.lampLevel = t.lamps;
     this._applyEnvLevels();
@@ -129,6 +142,21 @@ export class Engine {
     this.scene.fog = this.sky.visible ? new THREE.Fog(t.fog, 90, 380) : null;
   }
 
+  /** Peta lingkungan (refleksi) dari langit + tanah sesuai waktu. */
+  _skyEnvironment(t) {
+    if (!this._envScene) {
+      this._envScene = new THREE.Scene();
+      this._envSky = new THREE.Mesh(this.sky.geometry, this.sky.material);
+      this._envGround = new THREE.Mesh(new THREE.CircleGeometry(300, 32), new THREE.MeshBasicMaterial({ color: '#777' }));
+      this._envGround.rotation.x = -Math.PI / 2; this._envGround.position.y = -2;
+      this._envScene.add(this._envSky, this._envGround);
+    }
+    this._envGround.material.color.set(t.hemiGround).multiplyScalar(1.6);
+    if (this._skyEnvRT) this._skyEnvRT.dispose();
+    this._skyEnvRT = this.pmrem.fromScene(this._envScene, 0.02, 0.1, 1000);
+    return this._skyEnvRT.texture;
+  }
+
   _applyEnvLevels() {
     for (const m of this.ctx.windowMats) m.emissiveIntensity = this.windowLevel * 0.55;
     for (const m of this.ctx.lampMats) m.emissiveIntensity = this.lampLevel * 1.6;
@@ -137,6 +165,7 @@ export class Engine {
 
   setCity(group, ctx) {
     this._replace('city', group);
+    this._movers = group.userData.movers || [];
     this.ctx.windowMats.push(...ctx.windowMats);
     this.ctx.lampMats.push(...ctx.lampMats);
     this.ctx.lampLights.push(...ctx.lampLights);
@@ -329,6 +358,14 @@ export class Engine {
     if (this.mode === 'walk') this._walkUpdate(dt);
     else this.controls.update();
     if (this.camYMax && this.camera.position.y > this.camYMax) this.camera.position.y = this.camYMax;
+    if (this._movers && this.roots.city.visible) {
+      for (const m of this._movers) {
+        if (!m.visible) continue;
+        m.position.x += m.userData.speed * dt;
+        if (m.position.x > 90) m.position.x = -90; else if (m.position.x < -90) m.position.x = 90;
+        if (m.userData.wheels) for (const w of m.userData.wheels) w.rotation.z -= m.userData.speed * dt / 0.34 * Math.sign(Math.cos(m.rotation.y) || 1);
+      }
+    }
     // matahari mengikuti area fokus agar bayangan tajam
     const ft = this.focusTarget || new THREE.Vector3();
     if (this.sunOffset) {
@@ -541,6 +578,7 @@ export class Engine {
       if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
     }
     this.roots.city.traverse((o) => { if (o.userData.detail) o.visible = !low; });
+    this.gtao.enabled = !low;
     this.resize();
   }
   /** Pantau FPS; panggil cb sekali jika terlalu lambat. */

@@ -1,5 +1,5 @@
 // Service worker: halaman = jaringan dulu (fallback cache), aset statis = cache lalu perbarui di belakang.
-const CACHE = 'dazpro-v3';
+const CACHE = 'dazpro-v4';
 const CORE = [
   './',
   'index.html',
@@ -27,7 +27,9 @@ const CORE = [
   'vendor/three/addons/controls/OrbitControls.js',
   'vendor/three/addons/environments/RoomEnvironment.js',
   'vendor/three/addons/geometries/RoundedBoxGeometry.js',
+  'vendor/three/addons/math/SimplexNoise.js',
   'vendor/three/addons/postprocessing/EffectComposer.js',
+  'vendor/three/addons/postprocessing/GTAOPass.js',
   'vendor/three/addons/postprocessing/MaskPass.js',
   'vendor/three/addons/postprocessing/OutputPass.js',
   'vendor/three/addons/postprocessing/Pass.js',
@@ -35,8 +37,10 @@ const CORE = [
   'vendor/three/addons/postprocessing/ShaderPass.js',
   'vendor/three/addons/postprocessing/UnrealBloomPass.js',
   'vendor/three/addons/shaders/CopyShader.js',
+  'vendor/three/addons/shaders/GTAOShader.js',
   'vendor/three/addons/shaders/LuminosityHighPassShader.js',
   'vendor/three/addons/shaders/OutputShader.js',
+  'vendor/three/addons/shaders/PoissonDenoiseShader.js',
   'vendor/three/addons/utils/BufferGeometryUtils.js',
 ];
 

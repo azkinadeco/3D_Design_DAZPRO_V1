@@ -236,8 +236,9 @@ function car(x, z, rotY, ctx, color) {
   g.add(body, cabin, roofM);
   const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 16); wheelGeo.rotateX(Math.PI / 2);
   const rimMat = std('#b8bcc2', 0.3, 0.8);
+  g.userData.wheels = [];
   for (const [wx, wz] of [[1.35, 0.82], [1.35, -0.82], [-1.35, 0.82], [-1.35, -0.82]]) {
-    const w = new THREE.Mesh(wheelGeo, dark); w.position.set(wx, 0.34, wz); w.castShadow = true; g.add(w);
+    const w = new THREE.Mesh(wheelGeo, dark); w.position.set(wx, 0.34, wz); w.castShadow = true; g.add(w); g.userData.wheels.push(w);
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.02, 12).rotateX(Math.PI / 2), rimMat);
     rim.position.set(wx, 0.34, wz + Math.sign(wz) * 0.125); g.add(rim);
   }
@@ -249,6 +250,27 @@ function car(x, z, rotY, ctx, color) {
   }
   g.add(box(0.06, 0.16, 1.3, dark, 2.16, 0.42, 0, false));
   g.position.set(x, 0, z); g.rotation.y = rotY;
+  g.userData.detail = true;
+  return g;
+}
+
+const SKIN = ['#e0b48f', '#c99a72', '#a87656', '#f0c9a6'].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 }));
+const CLOTH = ['#2f5bff', '#e11d2e', '#1f2937', '#f5f5f4', '#16a34a', '#f59e0b', '#7c3aed', '#64748b'];
+function person(x, z, rotY = 0) {
+  const g = new THREE.Group();
+  const shirt = std(CLOTH[Math.floor(rand() * CLOTH.length)], 0.8), pants = std(['#1f2430', '#3b3f46', '#2a3550', '#5b4a3a'][Math.floor(rand() * 4)], 0.85);
+  const s = 0.92 + rand() * 0.16;
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.42, 4, 10), shirt); torso.position.y = 1.18;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 14, 10), SKIN[Math.floor(rand() * SKIN.length)]); head.position.y = 1.62;
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), std('#1d1a17', 0.9)); hair.position.y = 1.64;
+  const lL = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.62, 4, 8), pants); lL.position.set(-0.08, 0.42, 0);
+  const lR = lL.clone(); lR.position.x = 0.08;
+  const aL = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.46, 4, 8), shirt); aL.position.set(-0.24, 1.12, 0); aL.rotation.z = 0.08;
+  const aR = aL.clone(); aR.position.x = 0.24; aR.rotation.z = -0.08;
+  g.add(torso, head, hair, lL, lR, aL, aR);
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  g.scale.setScalar(s);
+  g.position.set(x, 0.15, z); g.rotation.y = rotY;
   g.userData.detail = true;
   return g;
 }
@@ -411,6 +433,14 @@ export function buildCity(ctx) {
   for (const lx of [-34, 34]) g.add(streetLight(lx, 16.6, ctx, -1));
   // mobil parkir & melintas
   for (const [cx, cz, r] of [[-12, 8.3, 0], [-31, 8.3, 0], [21, 8.3, Math.PI], [7, 12.6, Math.PI], [-44, 12.6, 0], [41, 8.3, 0]]) g.add(car(cx, cz, r, ctx));
+  // mobil melintas (bergerak, hanya kualitas tinggi)
+  const movers = [];
+  for (const [cx, cz, r, sp] of [[-60, 9.7, 0, 7.5], [25, 11.4, Math.PI, -6.5], [70, 11.4, Math.PI, -8]]) {
+    const c = car(cx, cz, r, ctx); c.userData.speed = sp; movers.push(c); g.add(c);
+  }
+  g.userData.movers = movers;
+  // pejalan kaki
+  for (const [px, pz, r] of [[-19, 5.2, 0.6], [-18.4, 5.6, -2.4], [13, 5.0, 1.2], [26, 5.6, -0.4], [-8, 15.8, 3.0], [19, 16.1, 2.5], [-29, 15.6, 0.3]]) g.add(person(px, pz, r));
   // bangku & bollard
   g.add(bench(-16.5, 4.5)); g.add(bench(17.5, 4.5));
   g.add(bench(-5, 16.6, Math.PI));
