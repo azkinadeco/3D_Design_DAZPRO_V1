@@ -1,0 +1,15 @@
+{
+  "name": "Dazpro Signage Studio 3D",
+  "short_name": "Dazpro 3D",
+  "description": "Desain neon box, huruf timbul & neon flex dalam 3D, lihat estimasi biaya, dan ajukan penawaran.",
+  "lang": "id",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7f9",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

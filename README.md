@@ -31,6 +31,9 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Jarak baca** | Perkiraan jarak nyaman & maksimal tulisan terbaca, dari tinggi huruf |
 | **Tampilan** | Panel edit bisa disembunyikan (tombol / tombol `P`), layar penuh (juga di iPhone), putar otomatis untuk presentasi |
 | **Rumus biaya** | Rumus baru diatur di admin → *Pengaturan harga*: huruf timbul (dasar × tinggi × jumlah huruf), neon box bulat (dasar × diameter × 2/3), neon box kotak (dasar × sisi terpanjang × 2/3), pemasangan reguler, transport per area, pajak, biaya additional. Selama belum disimpan & diaktifkan, situs memakai `PRICING` lama |
+| **Galeri proyek** | Foto hasil pemasangan dikelola di admin → *Galeri* (unggah, kategori, urutan, tampil/sembunyi); tampil di beranda dengan filter & lightbox |
+| **Kualitas grafis** | Otomatis / Tinggi / Ringan (tab Lokasi). Otomatis memantau FPS dan beralih ke Ringan di perangkat lambat |
+| **Aplikasi (PWA)** | Bisa dipasang di HP/PC (tombol *Pasang aplikasi*), tetap terbuka saat offline setelah kunjungan pertama |
 | **Database** | Setiap pengajuan tersimpan di Firebase Firestore (koleksi `pengajuan`) |
 | **Admin** | `/admin.html` — login Google, notifikasi + suara saat pengajuan baru masuk, statistik, filter status, cari, detail, catatan internal, chat WhatsApp dengan pesan siap kirim, buka desain di studio, export CSV |
 
@@ -54,6 +57,12 @@ js/firebase.js        Firestore + login Google (dimuat dari CDN Google saat dibu
 js/admin.js           halaman admin pengajuan
 admin.html            halaman admin
 firestore.rules       aturan keamanan Firestore (salin ke Firebase → Firestore → Rules)
+js/gallery.js         galeri proyek di beranda
+js/admin-price.js     admin: pengaturan harga
+js/admin-gallery.js   admin: galeri proyek
+sw.js                 service worker (cache offline) — tambahkan file JS baru ke daftar CORE
+manifest.webmanifest  manifest aplikasi (ikon, nama, warna)
+assets/               logo, favicon, ikon aplikasi
 fonts/*.json          data glyph font (dibuat oleh tools/build_fonts.py), lisensi di fonts/licenses
 vendor/three/         Three.js r169 + addons (tanpa CDN)
 ```
@@ -89,7 +98,7 @@ Simpanan V1 (satu signage) otomatis dimigrasikan ke format multi-signage.
 1. Konfigurasi web ada di `FIREBASE_CONFIG` (`js/config.js`).
 2. Firestore Database dibuat (Production mode), Authentication → Google diaktifkan.
 3. Isi `firestore.rules` ditempel di Firestore → Rules → Publish. Email admin ada di fungsi `isAdmin()`.
-4. Rules juga mengizinkan semua pengunjung **membaca** `settings/pricing` (agar estimasi memakai harga terbaru) dan hanya admin yang bisa mengubahnya.
+4. Rules juga mengizinkan semua pengunjung **membaca** `settings/pricing` dan `portfolio` (agar estimasi memakai harga terbaru) dan hanya admin yang bisa mengubahnya.
 5. Domain situs (mis. `nama.vercel.app`) ditambahkan di Authentication → Settings → **Authorized domains** — tanpa ini login admin gagal (`auth/unauthorized-domain`).
 
 ## Rencana berikutnya

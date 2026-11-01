@@ -1390,6 +1390,20 @@ const readBlock = (it) => {
   return `<div class="read">${ICONS.eye}<div><b>Nyaman dibaca hingga ±${fmt(r.ideal, 0)} m</b><span>Batas maksimal ±${fmt(r.max, 0)} m · tinggi huruf ≈ ${fmt(r.cm, 0)} cm</span></div></div>`;
 };
 
+// ---------- aplikasi (PWA) ----------
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !/claude|claudeusercontent/.test(location.hostname)) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { /* abaikan */ }));
+}
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; $('#btn-install').hidden = false; });
+$('#btn-install').addEventListener('click', async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  await installEvt.userChoice.catch(() => null);
+  installEvt = null; $('#btn-install').hidden = true;
+});
+window.addEventListener('appinstalled', () => { $('#btn-install').hidden = true; toast('Aplikasi Dazpro 3D terpasang'); });
+
 // ---------- toast ----------
 let toastT = 0;
 function toast(msg) {
