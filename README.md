@@ -28,6 +28,7 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Desain muka neon box** | Upload gambar desain sendiri untuk muka neon box (ikut menyala), opsional teks di atasnya |
 | **Konten beranda** | Admin → *Konten beranda*: ubah semua tulisan halaman utama, nomor WhatsApp, jam & area layanan |
 | **Biaya listrik** | Estimasi watt, kWh & rupiah per bulan dari jumlah modul LED / panjang neon flex, kecerahan & jam nyala; tarif bisa diatur di admin (awal Rp1.444,70/kWh) |
+| **Bandingkan varian** | Menu Proyek: simpan hingga 4 varian desain lalu bandingkan gambar, spesifikasi, listrik & estimasi berdampingan (termurah ditandai) |
 | **Video 360°** | Tombol kamera video: desain berputar ±8 detik lalu diunduh (WebM/MP4) untuk dibagikan ke WhatsApp/Instagram |
 | **Ajukan** | Rincian estimasi (dikelompokkan per signage), simpan PNG, kirim ringkasan + estimasi ke WhatsApp |
 | **Proyek** | Simpan di perangkat, buka simpanan, export/import `.json`, autosave |
@@ -39,7 +40,7 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Kualitas grafis** | Otomatis / Tinggi / Ringan (tab Lokasi). Tinggi: ambient occlusion (GTAO), refleksi langit, mobil melintas, pejalan kaki, bayangan 4096. Otomatis memantau FPS dan beralih ke Ringan di perangkat lambat |
 | **Aplikasi (PWA)** | Bisa dipasang di HP/PC (tombol *Pasang aplikasi*), tetap terbuka saat offline setelah kunjungan pertama |
 | **Database** | Setiap pengajuan tersimpan di Firebase Firestore (koleksi `pengajuan`) |
-| **Admin** | `/admin.html` — login Google, notifikasi + suara saat pengajuan baru masuk, statistik, filter status, cari, detail, catatan internal, chat WhatsApp dengan pesan siap kirim, buka desain di studio, export CSV |
+| **Admin** | `/admin.html` — login Google, dashboard ringkasan (grafik pengajuan 30 hari, lokasi, status, kota, konversi), notifikasi + suara saat pengajuan baru masuk, statistik, filter status, cari, detail, catatan internal, chat WhatsApp dengan pesan siap kirim, buka desain di studio, export CSV |
 
 ## Struktur
 

@@ -3,6 +3,7 @@ import { BRAND } from './config.js';
 import { mountPriceSettings } from './admin-price.js';
 import { mountGallery } from './admin-gallery.js';
 import { mountContent } from './admin-content.js';
+import { renderCharts } from './admin-charts.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -89,6 +90,7 @@ function render() {
     `<div class="stat"><b>${cnt('deal')}</b><span>Deal</span></div>`,
     `<div class="stat"><b>${rp(deal)}</b><span>Nilai deal (estimasi)</span></div>`,
   ].join('');
+  if ($('#dash-wrap').open) renderCharts($('#dash'), rows, STATUSES);
   $('#filters').innerHTML = [{ id: 'semua', name: 'Semua' }, ...STATUSES].map((s) => `<button class="chip ${filter === s.id ? 'active' : ''}" data-f="${s.id}">${s.name}</button>`).join('');
   const list = visible();
   $('#empty').hidden = list.length > 0;
@@ -148,6 +150,7 @@ function openDetail(id) {
 }
 
 $('#filters').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (b) { filter = b.dataset.f; render(); } });
+$('#dash-wrap').addEventListener('toggle', () => { if ($('#dash-wrap').open) renderCharts($('#dash'), rows, STATUSES); });
 $('#search').addEventListener('input', (e) => { q = e.target.value; render(); });
 $('#list').addEventListener('click', (e) => { const c = e.target.closest('[data-id]'); if (c) openDetail(c.dataset.id); });
 $('#detail').addEventListener('click', (e) => { if (e.target.id === 'detail' || e.target.closest('[data-close]')) $('#detail').hidden = true; });
