@@ -349,6 +349,24 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.35; font-wei
 .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; animation: pulse 1.2s infinite; }
 .icon-btn.recording { background: #ef4444 !important; color: #fff; }
 
+.drawer-card.xwide { width: min(1080px, 100%); }
+.badge-n { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; margin-left: 4px; }
+.badge-n:empty { display: none; }
+.cmp-actions { margin: 4px 0 14px; }
+.cmp { width: 100%; border-collapse: separate; border-spacing: 10px 0; table-layout: fixed; margin: 0 -10px; }
+.cmp th { text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 9px 0; border-top: 1px solid var(--line); vertical-align: top; width: 110px; }
+.cmp td { font-size: 13px; padding: 9px 0; border-top: 1px solid var(--line); vertical-align: top; word-break: break-word; }
+.cmp tr.head td { border-top: 0; padding-top: 0; }
+.cmp img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; display: block; background: var(--ink); }
+.cmp .vname { font-weight: 700; margin-top: 8px; }
+.cmp .vname input { width: 100%; border: 1px solid transparent; border-radius: 8px; padding: 4px 6px; font: inherit; font-weight: 700; margin-left: -6px; }
+.cmp .vname input:hover, .cmp .vname input:focus { border-color: var(--line-2); outline: none; }
+.cmp tr.total td { font-size: 17px; font-weight: 800; }
+.cmp .best { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: #166534; background: #dcfce7; border-radius: 99px; padding: 2px 8px; vertical-align: middle; }
+.cmp .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.cmp-wrap { overflow-x: auto; }
+@media (max-width: 760px) { .cmp { min-width: 640px; } }
+
 /* ---------- galeri ---------- */
 .gallery { max-width: 1560px; margin: 56px auto 0; padding: 0 clamp(16px, 3vw, 32px); }
 .gal-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }

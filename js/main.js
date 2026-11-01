@@ -1344,6 +1344,8 @@ $('#project-menu').addEventListener('click', (e) => {
   if (!act) return;
   if (act === 'share') openShare();
   if (act === 'quote') openSubmit();
+  if (act === 'variant') saveVariant();
+  if (act === 'compare') openCompare();
   if (act === 'save') {
     const list = store.get('dazpro.projects', []);
     const name = (state.items.length > 1 ? `${state.items.length} signage` : itemName(activeItem())) + ' — ' + PLACEMENTS.find((p) => p.id === state.placement).name;
@@ -1477,6 +1479,64 @@ function applyContent(c) {
   $('#foot-info').textContent = `Konsultasi ${BRAND.hours} · ${BRAND.area}`;
 }
 
+// ---------- varian desain (bandingkan) ----------
+const MAX_VARIANTS = 4;
+const variants = () => store.get('dazpro.variants', []);
+function updateVariantBadge() { const n = variants().length; $('#var-n').textContent = n ? n : ''; }
+function variantSummary() {
+  const pl = PLACEMENTS.find((p) => p.id === state.placement).name;
+  const rows = state.items.map((it, i) => {
+    const sp = Object.fromEntries(itemSpecs(it));
+    return { name: itemName(it, i), model: sp['Model'], text: sp['Teks'], size: sp['Ukuran jadi'], front: sp['Bahan depan'] || sp['Papan'] || sp['Desain muka'] || '—', led: sp['LED'] || sp['Warna neon'] || '—' };
+  });
+  const pw = power();
+  return { placement: pl, time: TIMES.find((t) => t.id === state.time).name, rows, total: pricing.total, power: pw.watt ? pw.rpMonth : 0 };
+}
+async function saveVariant() {
+  const list = variants();
+  if (list.length >= MAX_VARIANTS) { toast(`Maksimal ${MAX_VARIANTS} varian — hapus salah satu dulu`); return false; }
+  const thumb = await thumbJpeg(engine.screenshot(), 480, 0.75);
+  const snapState = JSON.parse(JSON.stringify(state, (k, v) => (typeof v === 'string' && v.startsWith('data:') && v.length > 200000 ? null : v)));
+  list.push({ id: Date.now(), name: `Varian ${String.fromCharCode(65 + list.length)}`, thumb, sum: variantSummary(), state: snapState });
+  if (!store.set('dazpro.variants', list)) { toast('Penyimpanan perangkat penuh — hapus varian lama'); return false; }
+  updateVariantBadge();
+  toast(`Disimpan sebagai ${list[list.length - 1].name}`);
+  return true;
+}
+function renderCompare() {
+  const list = variants();
+  $('#cmp-add').disabled = list.length >= MAX_VARIANTS;
+  if (!list.length) { $('#cmp-body').innerHTML = '<p class="muted">Belum ada varian. Atur desain, klik tombol di atas, ubah desain (model, bahan, lokasi…), lalu simpan lagi untuk dibandingkan.</p>'; return; }
+  const minTotal = Math.min(...list.map((v) => v.sum.total));
+  const cell = (fn) => list.map((v) => `<td>${fn(v)}</td>`).join('');
+  const join = (v, k) => v.sum.rows.map((r) => esc(r[k] || '—')).join('<br>');
+  $('#cmp-body').innerHTML = `<div class="cmp-wrap"><table class="cmp">
+    <tr class="head"><th></th>${cell((v) => `<img src="${esc(v.thumb)}" alt="" /><div class="vname"><input value="${esc(v.name)}" data-vname="${v.id}" maxlength="30" /></div>`)}</tr>
+    <tr><th>Lokasi</th>${cell((v) => `${esc(v.sum.placement)} · ${esc(v.sum.time)}`)}</tr>
+    <tr><th>Signage</th>${cell((v) => join(v, 'model'))}</tr>
+    <tr><th>Teks</th>${cell((v) => join(v, 'text'))}</tr>
+    <tr><th>Ukuran jadi</th>${cell((v) => join(v, 'size'))}</tr>
+    <tr><th>Bahan muka</th>${cell((v) => join(v, 'front'))}</tr>
+    <tr><th>Lampu</th>${cell((v) => join(v, 'led'))}</tr>
+    <tr><th>Listrik</th>${cell((v) => (v.sum.power ? `±${formatRp(v.sum.power)}/bln` : '—'))}</tr>
+    <tr class="total"><th>Estimasi</th>${cell((v) => `${formatRp(v.sum.total)}${list.length > 1 && v.sum.total === minTotal ? '<span class="best">Termurah</span>' : ''}`)}</tr>
+    <tr><th></th>${cell((v) => `<div class="acts"><button class="btn btn-primary btn-sm" data-vopen="${v.id}">Buka</button><button class="btn btn-ghost btn-sm" data-vdel="${v.id}">Hapus</button></div>`)}</tr>
+  </table></div>`;
+}
+function openCompare() { renderCompare(); openModal('#cmp-modal'); }
+$('#cmp-add').addEventListener('click', async () => { if (await saveVariant()) renderCompare(); });
+$('#cmp-body').addEventListener('click', async (e) => {
+  const o = e.target.closest('[data-vopen]'), d = e.target.closest('[data-vdel]');
+  if (o) { const v = variants().find((x) => String(x.id) === o.dataset.vopen); if (v) { $('#cmp-modal').hidden = true; await loadState(v.state); toast(`${v.name} dibuka`); } }
+  if (d) { store.set('dazpro.variants', variants().filter((x) => String(x.id) !== d.dataset.vdel)); updateVariantBadge(); renderCompare(); }
+});
+$('#cmp-body').addEventListener('change', (e) => {
+  const inp = e.target.closest('[data-vname]');
+  if (!inp) return;
+  const list = variants(); const v = list.find((x) => String(x.id) === inp.dataset.vname);
+  if (v) { v.name = inp.value.trim() || v.name; store.set('dazpro.variants', list); }
+});
+
 // ---------- aplikasi (PWA) ----------
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !/claude|claudeusercontent/.test(location.hostname)) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { /* abaikan */ }));
@@ -1528,11 +1588,12 @@ function toast(msg) {
   applyQuality();
   await applyAssets();
   setPanel(store.get('dazpro.panel', 1) !== 0, false);
+  updateVariantBadge();
   renderViewportUI();
   renderItems();
   renderPanel();
   invalidate({ time: true, hero: true, signs: 'all' });
   pushHistory();
   if (fromLink) { toast('Desain dari link dibuka'); autosave(); }
-  window.__dazpro = { engine, setPanel, setFull, openTemplates, get state() { return state; }, change, addItem, deleteItem, travel, openShare, get pricing() { return pricing; }, get history() { return hist; } };
+  window.__dazpro = { engine, saveVariant, openCompare, setPanel, setFull, openTemplates, get state() { return state; }, change, addItem, deleteItem, travel, openShare, get pricing() { return pricing; }, get history() { return hist; } };
 })();

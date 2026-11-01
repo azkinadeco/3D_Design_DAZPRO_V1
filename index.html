@@ -126,6 +126,9 @@
             <div class="menu-wrap">
               <button class="btn btn-ghost" id="btn-project">Proyek</button>
               <div class="menu" id="project-menu" hidden>
+                <button data-act="variant">Simpan sebagai varian</button>
+                <button data-act="compare">Bandingkan varian <span class="badge-n" id="var-n"></span></button>
+                <hr />
                 <button data-act="share">Bagikan link desain</button>
                 <button data-act="quote">Cetak penawaran (PDF)</button>
                 <hr />
@@ -222,6 +225,14 @@
     <div class="drawer-card wide">
       <div class="drawer-head"><div><h3>Template desain</h3><p class="muted small" style="margin:2px 0 0">Mulai cepat dari contoh, lalu ubah teks, warna, dan ukurannya.</p></div><button class="icon-btn" data-close aria-label="Tutup">✕</button></div>
       <div class="tpl-grid" id="tpl-grid"></div>
+    </div>
+  </div>
+
+  <div class="drawer" id="cmp-modal" hidden>
+    <div class="drawer-card xwide">
+      <div class="drawer-head"><div><h3>Bandingkan varian</h3><p class="muted small" style="margin:2px 0 0">Simpan beberapa versi desain (maks. 4), lalu bandingkan tampilan, spesifikasi, dan biayanya.</p></div><button class="icon-btn" data-close aria-label="Tutup">✕</button></div>
+      <div class="cmp-actions"><button class="btn btn-primary btn-sm" id="cmp-add">+ Simpan desain saat ini sebagai varian</button></div>
+      <div id="cmp-body"></div>
     </div>
   </div>
 
