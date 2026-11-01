@@ -176,6 +176,7 @@ export class Engine {
     this.ctx.windowMats = this.ctx.windowMats.filter((m) => !m.userData.hero);
     ctx.windowMats.forEach((m) => (m.userData.hero = true));
     this.ctx.windowMats.push(...ctx.windowMats);
+    if (this.quality === 'low') group.traverse((o) => { if (o.userData.detail) o.visible = false; });
     this._replace('hero', group);
     this._applyEnvLevels();
   }
@@ -577,7 +578,7 @@ export class Engine {
       this.sun.shadow.mapSize.set(size, size);
       if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
     }
-    this.roots.city.traverse((o) => { if (o.userData.detail) o.visible = !low; });
+    for (const k of ['city', 'hero']) this.roots[k].traverse((o) => { if (o.userData.detail) o.visible = !low; });
     this.gtao.enabled = !low;
     this.resize();
   }
