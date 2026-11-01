@@ -44,6 +44,7 @@ export function buildQuote(d) {
 
   <h2>Rincian estimasi biaya</h2>
   <table class="q-lines">${rows}<tr class="q-total"><td>Total estimasi</td><td>${d.formatRp(d.total)}</td></tr></table>
+  ${d.power ? `<p style="font-size:9.5pt;margin:6px 0 0"><b>Estimasi biaya listrik:</b> ${esc(d.power)}</p>` : ''}
 
   ${c.note ? `<h2>Catatan pelanggan</h2><p>${esc(c.note)}</p>` : ''}
 

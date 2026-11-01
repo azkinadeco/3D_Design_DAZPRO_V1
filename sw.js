@@ -1,5 +1,5 @@
 // Service worker: halaman = jaringan dulu (fallback cache), aset statis = cache lalu perbarui di belakang.
-const CACHE = 'dazpro-v6';
+const CACHE = 'dazpro-v7';
 const CORE = [
   './',
   'index.html',

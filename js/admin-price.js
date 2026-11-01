@@ -40,6 +40,11 @@ const SECTIONS = [
   ['Pajak', 'Dihitung dari total signage + pemasangan + transport + additional.', [
     ['taxPct', 'Pajak', '', '%'],
   ]],
+  ['Estimasi listrik', 'Untuk perkiraan biaya listrik LED per bulan yang ditampilkan ke pelanggan.', [
+    ['power.rate', 'Tarif listrik per kWh', 'PLN R-1 1.300–2.200 VA & B-2: Rp1.444,70 (Okt 2026)', 'rp'],
+    ['power.moduleW', 'Daya per modul LED', 'watt per modul (umumnya 0,72 W)', 'x'],
+    ['power.neonWPerM', 'Daya neon flex per meter', 'watt per meter (umumnya 8–10 W)', 'x'],
+  ]],
   ['Biaya additional', 'Biaya di luar signage: kerangka, tiang, totem, dll.', [
     ['additional.constructionBase', 'Kerangka konstruksi — biaya dasar', 'atas gedung / atas kafe', 'rp'],
     ['additional.constructionPerM2', 'Kerangka konstruksi — per m² bidang', '', 'rp'],

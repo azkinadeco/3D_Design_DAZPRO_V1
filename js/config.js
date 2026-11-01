@@ -173,6 +173,8 @@ export const PRICE_RULES_DEFAULT = {
   install: { indoor: 750000, indoorFreeM: 2, indoorPerM: 250000, listplang: 1250000, rooftopPerFloor: 750000, cafeFloors: 1 },
   transport: { malang: 500000, jatim: 1800000, jawa: 5000000, luarjawa: 15000000 },
   taxPct: 10,
+  // estimasi listrik (tarif PLN R-1 1.300–2.200 VA & B-2: Rp1.444,70/kWh per Okt 2026)
+  power: { rate: 1444.7, moduleW: 0.72, neonWPerM: 9, psuEff: 0.85 },
   // biaya additional (di luar signage)
   additional: {
     constructionBase: 750000, constructionPerM2: 1150000,
@@ -220,7 +222,8 @@ export function defaultState() {
     showDims: false,
     install: 'auto',   // jenis pemasangan (rumus biaya baru)
     area: 'malang',    // area pengiriman / transport
-    skipAdd: [],       // biaya additional yang tidak dipilih pelanggan ('<itemId>:<jenis>')
+    skipAdd: [],
+    hours: 12,         // lampu menyala per hari (estimasi listrik)       // biaya additional yang tidak dipilih pelanggan ('<itemId>:<jenis>')
     bg: { mode: 'sky', color: '#dfe4ea', image: null },
     wall: { image: null, width: 9, height: 5, color: '#d9d4cc', lockRatio: true },
     env: { floors: 4, poleHeight: 5.5, totemHeight: 6, structColor: '#2a2f37', showCity: true, mallW: 6, mallFascia: '#1f2329', boothL: 6, boothW: 2.4, boothColor: '#d9481f' },

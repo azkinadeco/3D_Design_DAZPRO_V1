@@ -198,3 +198,20 @@ function computePriceV2(ctx, list) {
   const missing = Object.entries(R.base).filter(([, v]) => !v).map(([k]) => k);
   return { lines, total, rules: 'v2', missing };
 }
+
+// ================= ESTIMASI LISTRIK =================
+/** Daya & biaya listrik per bulan. list: [{ view, metrics }] */
+export function powerEstimate(list, hours = 12) {
+  const R = getRules().power || PRICE_RULES_DEFAULT.power;
+  let w = 0;
+  for (const { view, metrics: m } of list) {
+    const type = SIGN_TYPES.find((t) => t.id === view.sign.type);
+    if (!type.lit || !view.led.on) continue;
+    const k = 0.35 + 0.65 * (view.led.brightness / 100);
+    if (type.group === 'neon') w += (m.neonLength || 0) * R.neonWPerM * k;
+    else w += (m.ledCount || 0) * R.moduleW * k;
+  }
+  const watt = w / (R.psuEff || 0.85);
+  const kwhMonth = (watt * hours * 30) / 1000;
+  return { watt, kwhMonth, rpMonth: kwhMonth * R.rate, rate: R.rate, hours };
+}

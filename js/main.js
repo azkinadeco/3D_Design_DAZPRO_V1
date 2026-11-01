@@ -6,7 +6,7 @@ import { buildSign, NEON_BOARDS } from './signage.js';
 import { buildDims } from './dims.js';
 import { loadFont, loadFontIndex, drawTextFit } from './fonts.js';
 import { MAT_DEFAULT_COLOR } from './materials.js';
-import { computePrice, formatRp, setRules, rulesActive, installTypeOf } from './pricing.js';
+import { computePrice, formatRp, setRules, rulesActive, installTypeOf, powerEstimate } from './pricing.js';
 import { ICONS } from './icons.js';
 import { buildQuote } from './quote.js';
 import { saveSubmission, getPriceRules, getSetting } from './firebase.js';
@@ -340,6 +340,15 @@ function updateSummary() {
   $('#vp-title').textContent = `${pl.name} · ${SIGN_TYPES.find((t) => t.id === state.sign.type).name}`;
 }
 
+function power() {
+  return powerEstimate(state.items.map((it) => ({ view: viewOf(it), metrics: metricsOf(it) })), state.hours || 12);
+}
+const powerText = (p) => `±${formatRp(p.rpMonth)}/bulan · ${fmt(p.watt, 0)} W · ${fmt(p.kwhMonth, 0)} kWh (${p.hours} jam/hari)`;
+function powerBlock() {
+  const p = power();
+  if (!p.watt) return '';
+  return `<div class="read">${ICONS.bulb}<div><b>Listrik ±${formatRp(p.rpMonth)}/bulan</b><span>${fmt(p.watt, 0)} W × ${p.hours} jam/hari ≈ ${fmt(p.kwhMonth, 0)} kWh · tarif Rp${p.rate.toLocaleString('id-ID', { maximumFractionDigits: 2 })}/kWh</span></div></div>`;
+}
 function updateSpec() {
   const rt = runtime.get(activeItem().id);
   if (!rt || !rt.res) return;
@@ -347,6 +356,8 @@ function updateSpec() {
   $('#vp-spec').textContent = `${state.items.length > 1 ? itemName(activeItem()) + ' · ' : ''}L ${fmt(s.w)} m × T ${fmt(s.h)} m × D ${fmt(s.d * 100, 0)} cm`;
   const out = $('#model-size');
   if (out) out.textContent = `Ukuran jadi ≈ ${fmt(s.w)} × ${fmt(s.h)} m`;
+  const pb = $('#power-box');
+  if (pb) pb.innerHTML = powerBlock();
   const rb = $('#read-box');
   if (rb) rb.innerHTML = readBlock(activeItem());
   const lc = $('#led-count');
@@ -546,6 +557,7 @@ function panelLampu() {
       <div class="group"><div class="lbl">Warna neon<span class="val">${esc((LED_COLORS.find((c) => c.hex === L.color) || { name: 'Custom ' + L.color }).name)}</span></div>${swatches('led.color', LED_COLORS.map((c) => c.hex))}</div>
       ${range('led.brightness', 'Kecerahan', 5, 100, 1, '%')}
       <div class="group"><div class="lbl">Efek</div><div class="seg-ctl">${LED_EFFECTS.map((e) => chip('led.effect', e.id, e.name, L.effect)).join('')}</div></div>
+      ${range('hours', 'Lampu menyala per hari', 1, 24, 1, ' jam')}<div class="group" id="power-box">${powerBlock()}</div>
       <div class="group"><div class="lbl">Waktu tampilan</div><div class="seg-ctl">${TIMES.map((x) => chip('time', x.id, x.name, state.time)).join('')}</div></div>`;
   }
   const modes = isBox ? LED_MODES.filter((m) => m.id === 'front' || m.id === 'side') : LED_MODES;
@@ -559,6 +571,7 @@ function panelLampu() {
     <div class="group"><div class="lbl">Efek</div><div class="seg-ctl">${LED_EFFECTS.map((e) => chip('led.effect', e.id, e.name, L.effect)).join('')}</div></div>
     <div class="group"><div class="lbl">Kepadatan modul LED</div><div class="seg-ctl">${LED_DENSITY.map((d) => chip('led.density', d.id, `${d.name} (${d.perM2}/m²)`, L.density)).join('')}</div></div>
     <div class="group">${toggle('led.xray', 'Lihat LED di dalam', 'Muka dibuat transparan untuk melihat susunan modul')}<p class="hint" id="led-count"></p></div>
+    ${range('hours', 'Lampu menyala per hari', 1, 24, 1, ' jam')}<div class="group" id="power-box">${powerBlock()}</div>
     <div class="group"><div class="lbl">Waktu tampilan</div><div class="seg-ctl">${TIMES.map((x) => chip('time', x.id, x.name, state.time)).join('')}</div></div>`;
 }
 
@@ -623,7 +636,7 @@ function syncPosInputs() {
 
 // ---------- perubahan state ----------
 function routeFlags(path) {
-  if (path === 'install' || path === 'area') return {};
+  if (path === 'install' || path === 'area' || path === 'hours') return {};
   if (path === 'time' || path.startsWith('bg.') || path === 'env.showCity') return { time: true };
   if (path === 'placement' || path.startsWith('env.') || path.startsWith('wall.')) return { hero: true, signs: 'all' };
   if (path.startsWith('sign.') || path.startsWith('led.')) return { signs: 'active' };
@@ -1104,6 +1117,7 @@ function linesTable() {
   const hasAdd = pricing.lines.some((l) => l.key);
   return `${hasAdd ? '<p class="muted small" style="margin:0 0 6px">Centang biaya <b>additional</b> yang ingin disertakan. Hapus centang jika Anda menyiapkannya sendiri.</p>' : ''}
     <table class="lines">${rows}<tr class="total"><td>Total estimasi</td><td>${formatRp(pricing.total)}</td></tr></table>
+    ${power().watt ? `<p class="small" style="margin:10px 0 0"><b>Estimasi listrik:</b> ${powerText(power())}</p>` : ''}
     <p class="muted small">Estimasi kasar berdasarkan ukuran, bahan, dan lokasi. Harga final dikonfirmasi setelah survei lokasi.</p>
     <div class="drawer-actions"><button class="btn btn-ghost btn-sm" data-open-quote>Cetak penawaran (PDF)</button><button class="btn btn-primary btn-sm" data-open-submit>Ajukan desain</button></div>`;
 }
@@ -1193,6 +1207,7 @@ $('#submit-form').addEventListener('submit', (e) => {
     'Rincian estimasi:',
     ...pricing.lines.map((l) => `- ${l.group ? l.group + ' · ' : ''}${l.label}: ${l.skipped ? 'tidak dipilih' : formatRp(l.amount)}`),
     `Total estimasi: ${formatRp(pricing.total)}`,
+    power().watt ? `Estimasi listrik: ${powerText(power())}` : null,
     fd.get('note') ? `\nCatatan: ${fd.get('note')}` : null,
     '\n(Gambar desain 3D saya lampirkan.)',
   ].filter((x) => x !== null).join('\n');
@@ -1262,7 +1277,7 @@ $('#btn-quote').addEventListener('click', async () => {
       time: TIMES.find((t) => t.id === state.time).name,
       overview: lastShot || engine.screenshot(),
       items: state.items.map((it, i) => ({ name: itemName(it, i), shot: shots[i], specs: itemSpecs(it) })),
-      lines: pricing.lines, total: pricing.total, formatRp,
+      lines: pricing.lines, total: pricing.total, formatRp, power: power().watt ? powerText(power()) : '',
     });
     await Promise.all($$('#quote img').map((im) => (im.complete ? 0 : new Promise((r) => { im.onload = im.onerror = r; }))));
     $('#submit-modal').hidden = true;

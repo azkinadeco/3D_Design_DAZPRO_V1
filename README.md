@@ -27,6 +27,7 @@ Konsepnya mengikuti `3d-decor-configurator` (panel kiri, viewport 3D, bar estima
 | **Penawaran PDF** | Dokumen A4: nomor & tanggal penawaran, data pelanggan, visual 3D, tampak depan tiap signage, tabel spesifikasi, rincian biaya, ketentuan → Simpan sebagai PDF dari dialog cetak |
 | **Desain muka neon box** | Upload gambar desain sendiri untuk muka neon box (ikut menyala), opsional teks di atasnya |
 | **Konten beranda** | Admin → *Konten beranda*: ubah semua tulisan halaman utama, nomor WhatsApp, jam & area layanan |
+| **Biaya listrik** | Estimasi watt, kWh & rupiah per bulan dari jumlah modul LED / panjang neon flex, kecerahan & jam nyala; tarif bisa diatur di admin (awal Rp1.444,70/kWh) |
 | **Video 360°** | Tombol kamera video: desain berputar ±8 detik lalu diunduh (WebM/MP4) untuk dibagikan ke WhatsApp/Instagram |
 | **Ajukan** | Rincian estimasi (dikelompokkan per signage), simpan PNG, kirim ringkasan + estimasi ke WhatsApp |
 | **Proyek** | Simpan di perangkat, buka simpanan, export/import `.json`, autosave |
